@@ -78,7 +78,7 @@ For preprocessing of other datasets, you may also refer to this repository:
 1. **Clone the Repository:**
 
     ```bash
-    git clone https://github.com/jianjiez100-sys/DAEST.git
+    git clone https://github.com/jianjiez100-sys/AMA-EEG.git
     ```
 
 2. **Navigate to the Project Directory:**
