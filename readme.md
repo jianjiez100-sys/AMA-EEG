@@ -1,9 +1,9 @@
 <!-- omit in toc -->
-# DAEST
+# AMA-EEG: Adaptive Multimodal Alignment for Cross-Subject EEG Emotion Recognition
 
 <!-- omit in toc -->
 ## Table of Contents
-- [Main Article](#main-article)
+- [Overview](#overview)
 - [Provided Datasets](#provided-datasets)
 - [Data Preprocessing](#data-preprocessing)
 - [Requirements](#requirements)
@@ -12,16 +12,11 @@
   - [Hardware](#hardware)
 - [Getting Started](#getting-started)
 
-## Main Article
+## Overview
 
-<details>
-  <summary>Dynamic-Attention-based EEG State Transition Modeling for Emotion Recognition</summary>
-  Electroencephalogram (EEG)-based emotion decoding can objectively quantify people's emotional state and has broad application prospects in human-computer interaction and early detection of emotional disorders. Recently emerging deep learning architectures have significantly improved the performance of EEG emotion decoding. However, existing methods still fall short of fully capturing the complex spatiotemporal dynamics of neural signals, which are crucial for representing emotion processing. This study proposes a Dynamic-Attention-based EEG State Transition (DAEST) modeling method to characterize EEG spatiotemporal dynamics. The model extracts spatiotemporal components of EEG that represent multiple parallel neural processes and estimates dynamic attention weights on these components to capture transitions in brain states. The model is optimized within a contrastive learning framework for cross-subject emotion recognition. The proposed method achieved state-of-the-art performance on three publicly available datasets: FACED, SEED, and SEED-V. It achieved $75.4\pm5.5\%$ accuracy in the binary classification of positive and negative emotions and $59.3\pm7.7\%$ in nine-class discrete emotion classification on the FACED dataset, $88.1\pm3.6\%$ in the three-class classification of positive, negative, and neutral emotions on the SEED dataset, and $73.6\pm12.7\%$ in five-class discrete emotion classification on the SEED-V dataset. The learned EEG spatiotemporal patterns and dynamic transition properties offer valuable insights into neural dynamics underlying emotion processing.
+AMA-EEG is a deep learning framework for EEG-based emotion recognition. It uses contrastive learning with multimodal alignment (EEG + text/image features) for cross-subject emotion classification. The model extracts spatiotemporal EEG components representing multiple parallel neural processes and estimates dynamic attention weights to capture transitions in brain states.
 
-  ![DAEST](paper_img/DAEST.jpg)
-
-
-</details>
+**Supported datasets:** FACED (123 subjects, 9/2-class), SEED (3-class), SEED-V (5-class).
 
 ## Provided Datasets
 

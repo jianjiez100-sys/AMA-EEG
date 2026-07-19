@@ -9,7 +9,7 @@ seed: 7
 
 log:
   run: 0
-  proj_name: 'CLISA_FACED_new'
+  proj_name: 'AMA_EEG'
   exp_name: ''
   cp_dir: './daest_cp/'
 
