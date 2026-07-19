@@ -1,0 +1,15 @@
+dataset_name: 'SEED'
+data_dir: './SEED_old'   #set your own data path
+fs: 200
+n_channs: 62
+n_session: 3
+n_subs: 15
+n_vids: 15
+n_class: 3
+
+# changeable
+timeLen: 5
+timeStep: 2
+timeLen2: 5
+timeStep2: 2
+
