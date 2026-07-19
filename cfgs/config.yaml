@@ -1,0 +1,102 @@
+# config.yaml
+
+defaults:
+  - _self_
+  - data: FACED
+  - model: cnn_att
+
+seed: 7
+
+log:
+  run: 0
+  proj_name: 'CLISA_FACED_new'
+  exp_name: ''
+  cp_dir: './daest_cp/'
+
+train:
+  gpus: [0]
+  valid_method: 10
+  iftest: False
+  n_subs: ${data.n_subs}
+
+# ==========================================
+  # 👇 [关键修改 1] 预训练模式选择
+  # ==========================================
+  # 0: EEG + Text
+  # 1: EEG + Image
+  # 2: Auto-Fusion (置信度加权动态融合) <-- 选这个
+  # 3:Static_Fusion
+  pretrain_mode: 2
+  # ==========================================
+
+  # ==========================================
+  # 👇 [关键修改 2] 传入类别数
+  # ==========================================
+  # 线性探针 (Linear Probe) 需要知道分类层输出维度
+  n_class: ${data.n_class}
+  # ==========================================
+
+  lr: 0.0007
+  wd: 0.00015
+  loss_temp: 0.07 #温度系数
+  loss_threshold: 1.0 # 文本相似度阈值: 相似度>此值的负样本被mask（跨受试者同一视频的文本向量）
+  mask_mode: 'vid_sub'  # 假阴性掩码模式: vid_sub(基于视频+受试者ID) / threshold(文本相似度阈值) / none(不掩码)
+  max_epochs: 15
+  min_epochs: 3
+  patience: 3
+  num_workers: 32
+  restart_times: 1
+
+  w_recon: 0.0
+  w_clip: 1.0
+  conf_temp: 0.1   #衡量文本图像权重的温度系数
+  image_feat_dim: 1024    # 图像特征维度: 1024(PCA后) / 1408(CLIP ViT-g隐藏层)
+
+  use_modal_proj: False      # True: Mode 0/1 也用投影层映射文本/图像; False: 直接用原始特征
+  pretrained_text_proj: './pretrained_projectors/projector_text.pt'
+  pretrained_image_proj: './pretrained_projectors/projector_image.pt'
+  probe_on_raw: True          # True: 探针读原始CLIP特征; False: 读投影后特征
+  probe_loss_weight: 2       # 探针损失权重: loss = L_contrast + w * (L_text_probe + L_image_probe)
+  fusion_alpha: 0.7            # Mode 3 Static Fusion 的文本权重 (0=纯图像, 1=纯文本)
+  use_two_stage_projector: True   # Align(冻结,fusion8权重) → Projector(随机初始化)
+  freeze_align_proj: True         # True: 冻结Align层; False: Align层可训练
+  # ==========================================
+
+mlp:
+  hidden_dim: [512,128]
+  out_dim: ${data.n_class}
+  dropout: 0.2
+  bn: 'no'
+  lr: 0.0002
+  wd: 0.0022
+  max_epochs: 30
+  min_epochs: 10
+  patience: 10
+  gpus: ${train.gpus}
+  num_workers: ${train.num_workers}
+  # ==========================================
+  # 👇 PCA 降维 (作用于 StandardScaler 之后、MLP 之前)
+  # ==========================================
+  use_pca: False         # True: 启用 PCA 降维
+  pca_dim: 128            # 目标维度
+  # 💡 PCA 推荐配置:
+  #   use_pca=True  pca_dim=128  hidden_dim=[32]   → 128→32→out (2层MLP)
+  #   use_pca=True  pca_dim=64   hidden_dim=[]     → 64→out    (纯线性)
+  # ==========================================
+  batch_size: 256
+
+ext_fea:
+  normTrain: True
+  batch_size: 256
+  mode: 'me'
+  rn_decay: 0.990
+  use_pretrain: True
+
+hydra:
+  job:
+    chdir: true
+  run:
+    dir: ./daest_run/${data.dataset_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}_run${log.run}
+
+start_fold: 0
+end_fold: 10

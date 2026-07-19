@@ -1,0 +1,13 @@
+__pycache__/
+daest_run/
+daest_cp/
+checkpoints_mlp/
+*.pyc
+*.ckpt
+CLAUDE.md
+.DS_Store
+wandb/
+features/
+extracted_features/
+pretrained_projectors/
+.claude/

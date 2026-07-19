@@ -1,0 +1,19 @@
+_target_: model.models.Conv_att_simple_new
+n_timeFilters: 16
+timeFilterLen: 30
+n_msFilters: 4
+msFilter_timeLen: 3
+n_channs: ${data.n_channs}
+dilation_array: [1,3,6,12]
+seg_att: 7
+avgPoolLen: 15
+timeSmootherLen: 3
+multiFact: 2
+activ: 'sigmoid'
+temp: 1.0
+stratified: ['initial', 'middle1', 'middle2']
+saveFea: False
+has_att: True
+extract_mode: ${ext_fea.mode}
+global_att: False
+proj_type: 'residual'   # 'bottleneck'(8.4M) 或 'residual'(2.1M+残差+LayerNorm)

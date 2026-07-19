@@ -1,0 +1,16 @@
+dataset_name: 'FACED'
+# 🔧 请修改为你的 EEG 数据路径。FACED 数据集需从 Synapse 注册获取:
+#    https://www.synapse.org/Synapse:syn50614194/wiki/620378
+data_dir: './data/FACED'   #set your own data path
+fs: 125
+n_channs: 32
+n_session: 1  
+n_subs: 123
+n_vids: 28
+
+# changeable
+n_class: 2      # 2/9 for classification
+timeLen: 5    
+timeStep: 2   
+timeLen2: 5
+timeStep2: 2
