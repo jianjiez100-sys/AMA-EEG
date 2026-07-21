@@ -2,8 +2,8 @@
 
 defaults:
   - _self_
-  - data: FACED
-  - model: cnn_att
+  - data: FACED_def_c2
+  - model: cnn_att_dual
 
 seed: 7
 
