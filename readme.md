@@ -20,8 +20,7 @@ AMA-EEG is a deep learning framework for EEG-based emotion recognition. It uses 
 
 ## Provided Datasets
 
-- [SEED/SEEDV](https://bcmi.sjtu.edu.cn/~seed/seed-v.html)
-- [FACED](https://www.synapse.org/Synapse:syn50614194/wiki/620378)
+- [FACED](https://www.synapse.org/Synapse:syn50614194/wiki/620378) — requires registration
 
 ## Data Preprocessing
 For **SEED dataset preprocessing**, we provide two MATLAB scripts in `data_preprocess/` folder:
