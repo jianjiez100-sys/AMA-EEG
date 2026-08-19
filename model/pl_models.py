@@ -299,10 +299,11 @@ class ExtractorModel(pl.LightningModule):
             loss_probes = loss_probe_t + loss_probe_i
 
             with torch.no_grad():
-                entropy_t = compute_entropy(t_logits)
-                entropy_i = compute_entropy(i_logits)
-                diff = (entropy_i - entropy_t) / self.conf_temp
-                inst_alpha = torch.sigmoid(diff)
+                loss_func_none = nn.CrossEntropyLoss(reduction='none')
+                loss_t_sample = loss_func_none(t_logits, labels)
+                loss_i_sample = loss_func_none(i_logits, labels)
+                diff = (loss_i_sample - loss_t_sample) / self.conf_temp
+                inst_alpha = torch.sigmoid(diff).unsqueeze(1)
 
                 alpha_txt = torch.zeros_like(inst_alpha)
                 for vid in torch.unique(vid_ids) if vid_ids is not None else torch.unique(labels):
@@ -444,10 +445,11 @@ class ExtractorModel(pl.LightningModule):
             self.log('val/probe_img_loss', self.probe_criterion(i_logits, labels), prog_bar=False)
 
             with torch.no_grad():
-                entropy_t = compute_entropy(t_logits)
-                entropy_i = compute_entropy(i_logits)
-                diff = (entropy_i - entropy_t) / self.conf_temp
-                alpha_txt = torch.sigmoid(diff)
+                loss_func_none = nn.CrossEntropyLoss(reduction='none')
+                loss_t_sample = loss_func_none(t_logits, labels)
+                loss_i_sample = loss_func_none(i_logits, labels)
+                diff = (loss_i_sample - loss_t_sample) / self.conf_temp
+                alpha_txt = torch.sigmoid(diff).unsqueeze(1)
 
             fused_target = alpha_txt * t_proj + (1.0 - alpha_txt) * i_proj
             target_feat = F.normalize(fused_target, dim=1)
