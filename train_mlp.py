@@ -10,7 +10,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, Callback
 from torch.utils.data import DataLoader
 import torch
 import logging
-from hydra.utils import get_original_cwd
+from hydra.utils import get_original_cwd, to_absolute_path
 import glob
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, f1_score, cohen_kappa_score
@@ -19,40 +19,7 @@ from sklearn.metrics import confusion_matrix
 
 # ------------------------
 
-# ==========================================
-# 👇 [设置区域] 用户自定义配置
-# ==========================================
-CLS_MODE = 9 # 2: 二分类, 9: 九分类
-# 🔧 请修改为你的特征文件路径。特征文件由 ext_fea_reorder.py 提取生成，
-#    可从项目 Release 页面下载预提取特征，或自行运行特征提取脚本。
-FEATURE_PATH_OVERRIDE = "./extracted_features"
-FEATURE_SUFFIX = "me"
-# FEATURE_SUFFIX = "withtimeconv_mode"
-TARGET_FOLDS = [0,1,2,3,4,5,6,7,8,9]
-# = [0,1,2,3]
-
-NEUTRAL_LABEL = 8
-POS_LABELS = [0, 1, 2, 3]
-NEG_LABELS = [4, 5, 6, 7]
-
-# --- [新增] 定义情感名称以便打印 ---
-EMOTION_NAMES_9 = [
-    "Anger", "Disgust", "Fear", "Sadness",
-    "Neutral", "Amusement", "Inspiration", "Joy", "Tenderness"
-]
-EMOTION_NAMES_2 = ["Negative", "Positive"]
-# -----------------------------------
-# ==========================================
-
 log = logging.getLogger(__name__)
-
-
-def convert_to_binary(labels):
-    """将标签转换为二分类 (0-3 -> 1, 4-7 -> 0)"""
-    new_labels = np.zeros_like(labels)
-    new_labels[np.isin(labels, POS_LABELS)] = 1
-    new_labels[np.isin(labels, NEG_LABELS)] = 0
-    return new_labels
 
 
 # ==========================================
@@ -103,25 +70,26 @@ def train_mlp(cfg: DictConfig) -> None:
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-    mode_str = "Binary (Pos vs Neg)" if CLS_MODE == 2 else "9-Class (Original)"
+    cls_mode = int(cfg.data.n_class)
+    feature_dir = to_absolute_path(cfg.ext_fea.output_dir)
+    feature_suffix = str(cfg.ext_fea.mode)
+    n_folds = cfg.data.n_subs if cfg.train.valid_method == 'loo' else int(cfg.train.valid_method)
+    end_fold = n_folds if cfg.get('end_fold') is None else min(int(cfg.end_fold), n_folds)
+    target_folds = list(range(int(cfg.get('start_fold', 0)), end_fold))
+    if cfg.train.iftest:
+        target_folds = target_folds[:1]
+    mode_str = f"{cls_mode}-Class {cfg.data.dataset_name}"
     log.info("=" * 60)
-    log.info(f"🚀 Current Task Mode: {CLS_MODE} - {mode_str}")
-    log.info(f"📂 Feature Path: {FEATURE_PATH_OVERRIDE}")
-    log.info(f"🎯 Target Folds: {TARGET_FOLDS}")
+    log.info(f"🚀 Current Task Mode: {mode_str}")
+    log.info(f"📂 Feature Path: {feature_dir}")
+    log.info(f"🎯 Target Folds: {target_folds}")
     log.info("=" * 60)
 
-    cfg.mlp.out_dim = CLS_MODE
+    cfg.mlp.out_dim = cls_mode
 
     # --- [新增] 根据分类模式选择标签列表 ---
-    emotion_list = EMOTION_NAMES_9 if CLS_MODE == 9 else EMOTION_NAMES_2
+    emotion_list = list(cfg.data.class_names)
     # -------------------------------------
-
-    if isinstance(cfg.train.valid_method, int):
-        n_folds = cfg.train.valid_method
-    elif cfg.train.valid_method == 'loo':
-        n_folds = cfg.train.n_subs
-    else:
-        n_folds = 10
 
     n_per = round(cfg.data.n_subs / n_folds) if n_folds > 0 else 1
 
@@ -139,8 +107,8 @@ def train_mlp(cfg: DictConfig) -> None:
 
     root_dir = get_original_cwd()
 
-    for fold in TARGET_FOLDS:
-        cp_dir = os.path.join(root_dir, 'checkpoints_mlp', cfg.data.dataset_name, f'cls{CLS_MODE}_r{cfg.log.run}')
+    for fold in target_folds:
+        cp_dir = os.path.join(root_dir, 'checkpoints_mlp', cfg.data.dataset_name, f'cls{cls_mode}_r{cfg.log.run}')
         os.makedirs(cp_dir, exist_ok=True)
 
         cp_monitor = None if n_folds == 1 else "mlp/val/acc"
@@ -159,7 +127,7 @@ def train_mlp(cfg: DictConfig) -> None:
         earlyStopping_callback = EarlyStopping(monitor=es_monitor, mode="max", patience=cfg.mlp.patience)
 
         # ✅ 5. 实例化 Callback
-        metrics_callback = MetricsCallback(out_dim=CLS_MODE)
+        metrics_callback = MetricsCallback(out_dim=cls_mode)
 
         log.info(f"\n🚀 Training Fold: {fold}")
 
@@ -173,9 +141,14 @@ def train_mlp(cfg: DictConfig) -> None:
         train_subs = list(set(np.arange(cfg.data.n_subs)) - set(val_subs))
 
         # 加载特征
-        save_dir = FEATURE_PATH_OVERRIDE
-        search_pattern = os.path.join(save_dir, f"*_f{fold}_fea_{FEATURE_SUFFIX}.npy")
-        found_files = glob.glob(search_pattern)
+        save_dir = feature_dir
+        patterns = [
+            os.path.join(save_dir, f"*_f{fold}_fea_{feature_suffix}.npy"),
+            os.path.join(save_dir, f"fea_f{fold}_{feature_suffix}.npy"),
+        ]
+        found_files = []
+        for pattern in patterns:
+            found_files.extend(glob.glob(pattern))
 
         if not found_files:
             log.error(f"❌ Feature file NOT found for fold {fold}")
@@ -208,12 +181,6 @@ def train_mlp(cfg: DictConfig) -> None:
         # 加载标签
         label_path = os.path.join(save_dir, 'onesub_label2.npy')
         onesub_label2 = np.load(label_path)
-
-        if CLS_MODE == 2:
-            valid_indices = np.where(onesub_label2 != NEUTRAL_LABEL)[0]
-            onesub_label2 = onesub_label2[valid_indices]
-            data2 = data2[:, valid_indices, ...]
-            onesub_label2 = convert_to_binary(onesub_label2)
 
         # 准备数据分布
         labels2_train = np.tile(onesub_label2, len(train_subs))
@@ -287,8 +254,8 @@ def train_mlp(cfg: DictConfig) -> None:
                              callbacks=[checkpoint_callback, earlyStopping_callback, metrics_callback],
                              max_epochs=cfg.mlp.max_epochs,
                              min_epochs=cfg.mlp.min_epochs,
-                             accelerator='gpu',
-                             devices=cfg.mlp.gpus,
+                             accelerator=cfg.train.accelerator,
+                             devices=1 if cfg.train.accelerator == 'cpu' else cfg.mlp.gpus,
                              limit_val_batches=limit_val_batches,
                              enable_progress_bar=True)
 
@@ -318,7 +285,7 @@ def train_mlp(cfg: DictConfig) -> None:
 
             # 计算各项指标
             fold_acc = accuracy_score(all_targets, all_preds)
-            avg_method = 'binary' if CLS_MODE == 2 else 'macro'
+            avg_method = 'binary' if cls_mode == 2 else 'macro'
             fold_f1 = f1_score(all_targets, all_preds, average=avg_method)
             fold_kappa = cohen_kappa_score(all_targets, all_preds)
 
@@ -327,7 +294,7 @@ def train_mlp(cfg: DictConfig) -> None:
             final_metrics["kappa"].append(fold_kappa)
 
             # --- [新增] 折内类别级准确率计算与记录 ---
-            cm = confusion_matrix(all_targets, all_preds, labels=range(CLS_MODE))
+            cm = confusion_matrix(all_targets, all_preds, labels=range(cls_mode))
             with np.errstate(divide='ignore', invalid='ignore'):
                 per_class = cm.diagonal() / cm.sum(axis=1)
                 per_class = np.nan_to_num(per_class)
@@ -341,7 +308,7 @@ def train_mlp(cfg: DictConfig) -> None:
 
             # --- [新增] 在本折结束时打印情感准确率 ---
             log.info(f"📊 Fold {fold} Per-Class Accuracy:")
-            class_info = " | ".join([f"{emotion_list[i]}: {per_class[i] * 100:.1f}%" for i in range(CLS_MODE)])
+            class_info = " | ".join([f"{emotion_list[i]}: {per_class[i] * 100:.1f}%" for i in range(cls_mode)])
             log.info(f"   {class_info}")
             # ----------------------------------------
 
@@ -351,7 +318,7 @@ def train_mlp(cfg: DictConfig) -> None:
     # ✅ 8. 最终汇总输出
     if cfg.train.valid_method != 1 and len(final_metrics["acc"]) > 0:
         log.info("\n" + "=" * 60)
-        log.info(f" 🏆 FINAL RESULTS (Mode: {CLS_MODE}-Class)")
+        log.info(f" 🏆 FINAL RESULTS (Mode: {cls_mode}-Class)")
         log.info("=" * 60)
 
         header = f"{'Sub':<5} | {'Acc (%)':<10} | {'F1 Score':<10} | {'Kappa':<10}"
@@ -359,7 +326,7 @@ def train_mlp(cfg: DictConfig) -> None:
         log.info("-" * len(header))
 
         for i in range(len(final_metrics["acc"])):
-            real_fold = TARGET_FOLDS[i]
+            real_fold = target_folds[i]
             log.info(
                 f"{real_fold:<5} | {final_metrics['acc'][i] * 100:.2f}       | {final_metrics['f1'][i]:.4f}       | {final_metrics['kappa'][i]:.4f}")
 
@@ -385,13 +352,13 @@ def train_mlp(cfg: DictConfig) -> None:
         header_cls = f"{'Emotion':<15} | {'Mean Acc (%)':<15} | {'Std (%)':<10}"
         log.info(header_cls)
         log.info("-" * len(header_cls))
-        for i in range(CLS_MODE):
+        for i in range(cls_mode):
             log.info(f"{emotion_list[i]:<15} | {mean_per_class[i] * 100:<15.2f} | {std_per_class[i] * 100:<10.2f}")
 
         log.info("\n🧱 Global Confusion Matrix (Aggregated All Folds):")
         global_cm = confusion_matrix(final_metrics["all_targets_global"], final_metrics["all_preds_global"])
 
-        top_line = "      " + "".join([f"[{i:^3}]" for i in range(CLS_MODE)])
+        top_line = "      " + "".join([f"[{i:^3}]" for i in range(cls_mode)])
         log.info(top_line)
         for i, row in enumerate(global_cm):
             row_str = f"[{i:^3}] " + "".join([f"{val:^5}" for val in row])

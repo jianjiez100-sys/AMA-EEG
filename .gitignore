@@ -7,7 +7,13 @@ checkpoints_mlp/
 CLAUDE.md
 .DS_Store
 wandb/
+logs/
 features/
 extracted_features/
+baseline_features/
+huggingface_cache/
 pretrained_projectors/
+release_assets/
+multimodel_fusion/seed_fusion1/projected_text/
+multimodel_fusion/seed_fusion1/projected_image/
 .claude/

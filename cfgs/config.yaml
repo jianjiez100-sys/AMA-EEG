@@ -15,7 +15,7 @@ log:
 
 train:
   gpus: [0]
-  valid_method: 10
+  valid_method: ${data.valid_method}
   iftest: False
   n_subs: ${data.n_subs}
 
@@ -34,6 +34,7 @@ train:
   # ==========================================
   # 线性探针 (Linear Probe) 需要知道分类层输出维度
   n_class: ${data.n_class}
+  class_names: ${data.class_names}
   # ==========================================
 
   lr: 0.0007
@@ -46,6 +47,12 @@ train:
   patience: 3
   num_workers: 32
   restart_times: 1
+  sampler_times: 1
+  cross_session: false
+  accelerator: 'gpu'
+  precision: 'bf16-mixed'
+  limit_train_batches: 1.0
+  limit_val_batches: 1.0
 
   w_recon: 0.0
   w_clip: 1.0
@@ -53,12 +60,12 @@ train:
   image_feat_dim: 1024    # 图像特征维度: 1024(PCA后) / 1408(CLIP ViT-g隐藏层)
 
   use_modal_proj: False      # True: Mode 0/1 也用投影层映射文本/图像; False: 直接用原始特征
-  pretrained_text_proj: './pretrained_projectors/projector_text.pt'
-  pretrained_image_proj: './pretrained_projectors/projector_image.pt'
+  pretrained_text_proj: ${data.pretrained_text_proj}
+  pretrained_image_proj: ${data.pretrained_image_proj}
   probe_on_raw: True          # True: 探针读原始CLIP特征; False: 读投影后特征
   probe_loss_weight: 2       # 探针损失权重: loss = L_contrast + w * (L_text_probe + L_image_probe)
   fusion_alpha: 0.7            # Mode 3 Static Fusion 的文本权重 (0=纯图像, 1=纯文本)
-  use_two_stage_projector: True   # Align(冻结,fusion8权重) → Projector(随机初始化)
+  use_two_stage_projector: ${data.use_two_stage_projector}
   freeze_align_proj: True         # True: 冻结Align层; False: Align层可训练
   # ==========================================
 
@@ -86,6 +93,7 @@ mlp:
   batch_size: 256
 
 ext_fea:
+  output_dir: './extracted_features/${data.dataset_name}/run${log.run}'
   normTrain: True
   batch_size: 256
   mode: 'me'
@@ -99,4 +107,4 @@ hydra:
     dir: ./daest_run/${data.dataset_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}_run${log.run}
 
 start_fold: 0
-end_fold: 10
+end_fold: null

@@ -2,6 +2,11 @@ dataset_name: 'FACED'
 # 🔧 请修改为你的 EEG 数据路径。FACED 数据集需从 Synapse 注册获取:
 #    https://www.synapse.org/Synapse:syn50614194/wiki/620378
 data_dir: './data/FACED'
+text_feat_dir: './features/text_timelen5_timestep2_1024_objective'
+image_feat_dir: './features/image_features_clip_vit_centercrop_timelen5_timestep2'
+use_two_stage_projector: true
+pretrained_text_proj: './multimodel_fusion/fusion10/projector_text.pt'
+pretrained_image_proj: './multimodel_fusion/fusion10/projector_image.pt'
 fs: 125
 n_channs: 32
 n_session: 1
@@ -10,9 +15,10 @@ n_vids: 28
 
 # changeable
 n_class: 9      # 2/9 for classification
+valid_method: 10
 timeLen: 5
 timeStep: 2
 timeLen2: 5
 timeStep2: 2
 
-class_names: ['Anger', 'Disgust', 'Fear', 'Sadness', 'neutral', 'Amusement', 'Inspiration', 'Joy', 'Tenderness']
+class_names: ['Anger', 'Disgust', 'Fear', 'Sadness', 'Neutral', 'Amusement', 'Inspiration', 'Joy', 'Tenderness']

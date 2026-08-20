@@ -1,15 +1,21 @@
 dataset_name: 'SEED'
-data_dir: './SEED_old'   #set your own data path
-fs: 200
+data_dir: './data/SEED'
+text_feat_dir: './features/SEED/text_timelen5_timestep2_1024'
+image_feat_dir: './features/SEED/image_features_clip_vit_centercrop_timelen5_timestep2'
+use_two_stage_projector: true
+pretrained_text_proj: './multimodel_fusion/seed_fusion1/projector_text.pt'
+pretrained_image_proj: './multimodel_fusion/seed_fusion1/projector_image.pt'
+fs: 125
 n_channs: 62
 n_session: 3
 n_subs: 15
 n_vids: 15
 n_class: 3
+valid_method: 'loo'
+class_names: ['Negative', 'Neutral', 'Positive']
 
 # changeable
 timeLen: 5
 timeStep: 2
 timeLen2: 5
 timeStep2: 2
-

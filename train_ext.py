@@ -9,10 +9,10 @@ from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, Callback
 import logging
 import sys
 # Used to get original path, escaping Hydra's sandbox
-from hydra.utils import get_original_cwd
+from hydra.utils import get_original_cwd, to_absolute_path
 
 # Import DataModule and LightningModule
-from data.pl_datamodule import FACEDDataModule, EEGDataModule
+from data.pl_datamodule import EEGDataModule, FACEDDataModule, SEEDDataModule
 from model.pl_models import ExtractorModel
 
 # Set matrix multiplication precision
@@ -145,33 +145,33 @@ def train_ext(cfg: DictConfig) -> None:
         n_folds = 10
 
     n_per = round(cfg.data.n_subs / n_folds)
-
-    # 👇 恢复正常的折数循环逻辑
-    # fold_range = range(cfg.get("start_fold", 0), cfg.get("end_fold", n_folds))
-
-    # 如果你想只跑第 9 折，取消下面这行的注释：
-    fold_range = [0,1,2,3,4,5,6,7,8,9]
+    start_fold = int(cfg.get('start_fold', 0))
+    end_fold = cfg.get('end_fold')
+    end_fold = n_folds if end_fold is None else min(int(end_fold), n_folds)
+    fold_range = list(range(start_fold, end_fold))
+    if cfg.train.iftest:
+        fold_range = fold_range[:1]
 
     print(f"👉 Running Folds: {list(fold_range)}")
 
-    # ================= [配置: 预提取特征路径] =================
-    # 🔧 请修改为你的特征文件路径。
-    # 预提取的文本/图像特征可从项目 Release 页面下载，或使用 FACED/ 目录下的脚本自行提取。
-    # 期望目录结构: features/text_timelen5_timestep2_1024_objective/*.npy
-    #              features/image_features_clip_vit_centercrop_timelen5_timestep2/*.npy
-    text_feat_dir = os.path.join(original_cwd, "features", "text_timelen5_timestep2_1024_objective")
-    image_feat_dir = os.path.join(original_cwd, "features", "image_features_clip_vit_centercrop_timelen5_timestep2")
+    data_dir = to_absolute_path(cfg.data.data_dir)
+    text_feat_dir = to_absolute_path(cfg.data.text_feat_dir)
+    image_feat_dir = to_absolute_path(cfg.data.image_feat_dir)
 
-    # ===============================================
-
-    # ===============================================
+    from omegaconf import open_dict as od
+    with od(cfg.train):
+        if cfg.train.pretrained_text_proj:
+            cfg.train.pretrained_text_proj = to_absolute_path(cfg.train.pretrained_text_proj)
+        if cfg.train.pretrained_image_proj:
+            cfg.train.pretrained_image_proj = to_absolute_path(cfg.train.pretrained_image_proj)
 
     for fold in fold_range:
         print(f"\n>>> Starting Fold: {fold} | Mode: {current_mode_desc} <<<")
 
         # ================= [Checkpoint 路径] =================
         # 🔧 Checkpoint 保存目录，可修改为任意路径
-        cp_dir = os.path.join(original_cwd, "daest_cp")
+        cp_dir = os.path.join(
+            to_absolute_path(cfg.log.cp_dir), cfg.data.dataset_name, f"run{cfg.log.run}")
 
         if fold == fold_range[0]:
             print(f"💾 Checkpoints will be saved to: {cp_dir}")
@@ -211,22 +211,22 @@ def train_ext(cfg: DictConfig) -> None:
         else:
             val_subs = np.arange(n_per * fold, cfg.data.n_subs)
 
-        train_subs = list(set(np.arange(cfg.data.n_subs)) - set(val_subs))
-        if len(val_subs) == 1: val_subs = list(val_subs)
+        val_subs = list(val_subs)
+        train_subs = sorted(set(range(cfg.data.n_subs)) - set(val_subs))
 
         print(f'   Train Subs: {len(train_subs)} subjects')
         print(f'   Val Subs:   {val_subs}')
 
         # 视频 ID 设置
-        n_vids = 28 if cfg.data.dataset_name == 'FACED' else cfg.data.n_vids
+        n_vids = cfg.data.n_vids
         train_vids = np.arange(n_vids)
         val_vids = np.arange(n_vids)
 
         # ================= [初始化 DataModule] =================
         if cfg.data.dataset_name == 'FACED':
             dm = FACEDDataModule(
-                load_dir=cfg.data.data_dir,
-                save_dir=cfg.data.data_dir,
+                load_dir=data_dir,
+                save_dir=data_dir,
                 timeLen=cfg.data.timeLen,
                 timeStep=cfg.data.timeStep,
                 train_subs=train_subs,
@@ -245,12 +245,34 @@ def train_ext(cfg: DictConfig) -> None:
                 text_feat_dir=text_feat_dir,
                 use_pretrain_sampler=True
             )
+        elif cfg.data.dataset_name == 'SEED':
+            dm = SEEDDataModule(
+                load_dir=data_dir,
+                save_dir=data_dir,
+                timeLen=cfg.data.timeLen,
+                timeStep=cfg.data.timeStep,
+                train_subs=train_subs,
+                val_subs=val_subs,
+                train_vids=train_vids,
+                val_vids=val_vids,
+                n_session=cfg.data.n_session,
+                fs=cfg.data.fs,
+                n_chans=cfg.data.n_channs,
+                n_subs=cfg.data.n_subs,
+                n_vids=n_vids,
+                n_class=cfg.data.n_class,
+                loo=(cfg.train.valid_method == 'loo'),
+                num_workers=cfg.train.num_workers,
+                image_feat_dir=image_feat_dir,
+                text_feat_dir=text_feat_dir,
+                sampler_times=cfg.train.sampler_times,
+                cross_session=cfg.train.cross_session,
+            )
         else:
             dm = EEGDataModule(cfg.data, train_subs, val_subs, train_vids, val_vids,
                                cfg.train.valid_method == 'loo', cfg.train.num_workers)
 
         # ================= [同步 backbone 配置] =================
-        from omegaconf import open_dict as od
         with od(cfg.model):
             cfg.model.proj_type = 'residual'
             cfg.model.use_ln_backbone = True
@@ -271,10 +293,11 @@ def train_ext(cfg: DictConfig) -> None:
             callbacks=[checkpoint_callback, earlyStopping_callback, weight_callback, val_metrics_callback],
             max_epochs=cfg.train.max_epochs,
             min_epochs=cfg.train.min_epochs,
-            accelerator='gpu',
-            devices=cfg.train.gpus,
-            limit_val_batches=0.0 if n_folds == 1 else 1.0,
-            precision="bf16-mixed",
+            accelerator=cfg.train.accelerator,
+            devices=1 if cfg.train.accelerator == 'cpu' else cfg.train.gpus,
+            limit_train_batches=cfg.train.limit_train_batches,
+            limit_val_batches=0.0 if n_folds == 1 else cfg.train.limit_val_batches,
+            precision=cfg.train.precision,
             gradient_clip_val=1.0,
             enable_progress_bar=True
         )

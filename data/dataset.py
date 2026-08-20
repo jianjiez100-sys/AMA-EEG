@@ -1,7 +1,13 @@
 from torch.utils.data import Dataset, DataLoader, Sampler
 import torch
 # 确保这里能正确导入你的 io_utils
-from .io_utils import load_EEG_data, load_processed_SEEDV_NEW_data, load_processed_FACED_NEW_data, save_sliced_data
+from .io_utils import (
+    load_EEG_data,
+    load_processed_FACED_NEW_data,
+    load_processed_SEED_NEW_data,
+    load_processed_SEEDV_NEW_data,
+    save_sliced_data,
+)
 import os
 import numpy as np
 import random
@@ -57,18 +63,19 @@ class FACED_Dataset_new(Dataset):
         # ================= [关键修改] 构建文件名映射列表 =================
         # FACED 顺序: Anger(3), Disgust(3), Fear(3), Sadness(3), Neutral(4), Amusement(3), Inspiration(3), Joy(3), Tenderness(3)
         # 总共 28 个视频，对应 vid 0 ~ 27
-        self.file_mapping = []
-        self.file_mapping.extend([f"neg_a_{i}_features.npy" for i in range(1, 4)])  # 0-2: Anger
-        self.file_mapping.extend([f"neg_d_{i}_features.npy" for i in range(1, 4)])  # 3-5: Disgust
-        self.file_mapping.extend([f"neg_f_{i}_features.npy" for i in range(1, 4)])  # 6-8: Fear
-        self.file_mapping.extend([f"neg_s_{i}_features.npy" for i in range(1, 4)])  # 9-11: Sadness
-        self.file_mapping.extend([f"neu_{i}_features.npy" for i in range(1, 5)])  # 12-15: Neutral (注意这里是4个)
-        self.file_mapping.extend([f"pos_a_{i}_features.npy" for i in range(1, 4)])  # 16-18: Amusement
-        self.file_mapping.extend([f"pos_i_{i}_features.npy" for i in range(1, 4)])  # 19-21: Inspiration
-        self.file_mapping.extend([f"pos_j_{i}_features.npy" for i in range(1, 4)])  # 22-24: Joy
-        self.file_mapping.extend([f"pos_t_{i}_features.npy" for i in range(1, 4)])  # 25-27: Tenderness
-
-        assert len(self.file_mapping) == 28, f"File mapping len mismatch! Expected 28, got {len(self.file_mapping)}"
+        negative = [
+            f"neg_{emotion}_{i}_features.npy"
+            for emotion in ('a', 'd', 'f', 's') for i in range(1, 4)
+        ]
+        neutral = [f"neu_{i}_features.npy" for i in range(1, 5)]
+        positive = [
+            f"pos_{emotion}_{i}_features.npy"
+            for emotion in ('a', 'i', 'j', 't') for i in range(1, 4)
+        ]
+        self.file_mapping = negative + positive if n_class == 2 else negative + neutral + positive
+        if len(self.file_mapping) != self.n_vids:
+            raise ValueError(
+                f"FACED feature mapping has {len(self.file_mapping)} videos, expected {self.n_vids}")
 
         # ================= 加载多模态特征 =================
         if sliced and image_feat_dir is not None and text_feat_dir is not None:
@@ -144,6 +151,135 @@ class FACED_Dataset_new(Dataset):
             return one_seq, one_label, txt_feat, img_feat, vid_id, sub_id
         else:
             return one_seq, one_label
+
+
+SEED_FILE_MAPPING = [
+    "positive/Lost_in_Thailand_1_features.npy",
+    "neutral/Huangshan_1_features.npy",
+    "negative/Tangshan_Earthquake_1_features.npy",
+    "negative/1942_1_features.npy",
+    "neutral/Huangshan_2_features.npy",
+    "positive/Lost_in_Thailand_2_features.npy",
+    "negative/1942_2_features.npy",
+    "neutral/Suzhou_1_features.npy",
+    "positive/Flirting_Scholar_features.npy",
+    "positive/Just_Another_Pandoras_Box_1_features.npy",
+    "neutral/Suzhou_2_features.npy",
+    "negative/1942_3_features.npy",
+    "neutral/Lijiang_1_features.npy",
+    "positive/Just_Another_Pandoras_Box_2_features.npy",
+    "negative/Tangshan_Earthquake_2_features.npy",
+]
+
+
+class SEED_Dataset_new(Dataset):
+    """SEED EEG windows paired with the paper's fusion1 text/image features."""
+
+    def __init__(self, load_dir, save_dir, timeLen, timeStep, train_subs=None, val_subs=None,
+                 sliced=True, mods='train', n_session=3, fs=125, n_chans=62, n_subs=15,
+                 n_vids=15, n_class=3, image_feat_dir=None, text_feat_dir=None):
+        self.load_dir = load_dir
+        self.save_dir = save_dir
+        self.timeLen = timeLen
+        self.timeStep = timeStep
+        self.n_session = n_session
+        self.fs = fs
+        self.n_chans = n_chans
+        self.n_subs = n_subs
+        self.n_vids = n_vids
+        self.n_class = n_class
+        self.mods = mods
+        if mods == 'train':
+            self.active_subs = list(train_subs) if train_subs is not None else []
+        else:
+            self.active_subs = list(val_subs) if val_subs is not None else []
+        self.sliced_data_dir = os.path.join(save_dir, f'sliced_len{timeLen}_step{timeStep}_SEED')
+
+        if not sliced:
+            marker_file = os.path.join(self.sliced_data_dir, 'saved.npy')
+            if not os.path.exists(marker_file):
+                data, labels, n_samples, n_samples_sessions = load_processed_SEED_NEW_data(
+                    dir=load_dir, fs=fs, n_chans=n_chans, timeLen=timeLen, timeStep=timeStep,
+                    n_session=n_session, n_subs=n_subs, n_vids=n_vids, n_class=n_class)
+                save_sliced_data(self.sliced_data_dir, data, labels, n_samples, n_samples_sessions)
+            return
+
+        metadata_dir = os.path.join(self.sliced_data_dir, 'metadata')
+        raw_labels = np.load(os.path.join(metadata_dir, 'onesub_labels.npy'))
+        n_samples_all = np.load(os.path.join(metadata_dir, 'n_samples_onesub.npy'))
+        n_segments = n_session * n_vids
+        self.n_samples_original = n_samples_all[:n_segments].astype(int)
+        self.cumulative_original = np.concatenate(([0], np.cumsum(self.n_samples_original)))
+        self.onesub_len_original = int(self.n_samples_original.sum())
+        if len(raw_labels) == self.onesub_len_original * n_subs:
+            raw_labels = raw_labels[:self.onesub_len_original]
+        elif len(raw_labels) != self.onesub_len_original:
+            raise ValueError(
+                f"SEED labels have length {len(raw_labels)}, expected "
+                f"{self.onesub_len_original} or {self.onesub_len_original * n_subs}")
+
+        has_image = image_feat_dir is not None
+        has_text = text_feat_dir is not None
+        if has_image != has_text:
+            raise ValueError("SEED pretraining requires both text and image feature directories")
+        self.has_multimodal = has_image and has_text
+
+        if self.has_multimodal:
+            self.image_features = []
+            self.text_features = []
+            for relative_path in SEED_FILE_MAPPING:
+                image_path = os.path.join(image_feat_dir, relative_path)
+                text_path = os.path.join(text_feat_dir, relative_path)
+                if not os.path.exists(image_path):
+                    raise FileNotFoundError(f"Missing SEED image feature: {image_path}")
+                if not os.path.exists(text_path):
+                    raise FileNotFoundError(f"Missing SEED text feature: {text_path}")
+                self.image_features.append(torch.from_numpy(np.load(image_path)).float())
+                self.text_features.append(torch.from_numpy(np.load(text_path)).float())
+
+            aligned_counts = []
+            aligned_labels = []
+            offset = 0
+            for segment_idx, eeg_count in enumerate(self.n_samples_original):
+                video_id = segment_idx % n_vids
+                count = min(eeg_count, len(self.image_features[video_id]),
+                            len(self.text_features[video_id]))
+                aligned_counts.append(count)
+                aligned_labels.append(raw_labels[offset:offset + count])
+                offset += eeg_count
+            self.n_samples_aligned = np.asarray(aligned_counts, dtype=int)
+            self.onesub_labels = torch.from_numpy(np.concatenate(aligned_labels)).long()
+        else:
+            self.n_samples_aligned = self.n_samples_original
+            self.onesub_labels = torch.from_numpy(raw_labels).long()
+
+        self.cumulative_aligned = np.concatenate(([0], np.cumsum(self.n_samples_aligned)))
+        self.onesubLen = int(self.n_samples_aligned.sum())
+
+    def __len__(self):
+        return len(self.active_subs) * self.onesubLen
+
+    def __getitem__(self, idx):
+        idx = int(idx)
+        subject_position, aligned_offset = divmod(idx, self.onesubLen)
+        subject_id = self.active_subs[subject_position]
+        segment_idx = np.searchsorted(self.cumulative_aligned, aligned_offset, side='right') - 1
+        offset_in_segment = aligned_offset - self.cumulative_aligned[segment_idx]
+        original_idx = (subject_id * self.onesub_len_original
+                        + self.cumulative_original[segment_idx] + offset_in_segment)
+        eeg_path = os.path.join(self.sliced_data_dir, 'data', f'data_sample_{original_idx}.npy')
+        eeg = np.load(eeg_path)
+        eeg = torch.from_numpy(eeg).float().reshape(1, self.n_chans, -1)
+        label = self.onesub_labels[aligned_offset]
+
+        if not self.has_multimodal:
+            return eeg, label
+
+        video_id = segment_idx % self.n_vids
+        text = self.text_features[video_id][offset_in_segment]
+        image = self.image_features[video_id][offset_in_segment]
+        content_id = int(video_id) * 1000 + int(offset_in_segment)
+        return eeg, label, text, image, content_id, int(subject_id)
 # ==========================================
 # 其他类保持不变 (SEEDV, FACED_Dataset 旧版等)
 # ==========================================
@@ -389,7 +525,8 @@ class TrainSampler_SEEDV():
 
 
 class PretrainSampler():
-    def __init__(self, n_subs, batch_size, n_samples_session, n_times=1, if_val_loo=False):
+    def __init__(self, n_subs, batch_size, n_samples_session, n_times=1, if_val_loo=False,
+                 cross_session=False):
         self.n_per_session = np.sum(n_samples_session, 1).astype(int)
         self.n_per_session_cum = np.concatenate((np.array([0]), np.cumsum(self.n_per_session)))
         self.n_subs = n_subs
@@ -402,9 +539,15 @@ class PretrainSampler():
             self.n_pairsubs = 1
         else:
             self.n_pairsubs = self.n_subs
-        for i in range(self.n_pairsubs * self.n_session):
-            for j in range(i + self.n_session, self.n_subs * self.n_session, self.n_session):
-                self.subsession_pairs.append([i, j])
+        if cross_session:
+            total_sub_sessions = self.n_subs * self.n_session
+            for i in range(total_sub_sessions):
+                for j in range(i + 1, total_sub_sessions):
+                    self.subsession_pairs.append([i, j])
+        else:
+            for i in range(self.n_pairsubs * self.n_session):
+                for j in range(i + self.n_session, self.n_subs * self.n_session, self.n_session):
+                    self.subsession_pairs.append([i, j])
         random.shuffle(self.subsession_pairs)
         self.n_times = n_times
 

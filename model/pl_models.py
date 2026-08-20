@@ -49,14 +49,10 @@ class ExtractorModel(pl.LightningModule):
         if self.image_feat_dim != 1024:
             self.image_input_proj = nn.Linear(self.image_feat_dim, 1024, bias=False)
 
-        # 情感类别名（用于日志）
-        if self.n_class == 2:
-            self.emotion_names = ["0_Negative", "1_Positive"]
-        else:
-            self.emotion_names = [
-                "0_Anger", "1_Disgust", "2_Fear", "3_Sadness",
-                "4_Neutral", "5_Amusement", "6_Inspiration", "7_Joy", "8_Tenderness"
-            ]
+        class_names = list(getattr(cfg, 'class_names', []))
+        if len(class_names) != self.n_class:
+            class_names = [f"Class_{index}" for index in range(self.n_class)]
+        self.emotion_names = [f"{index}_{name}" for index, name in enumerate(class_names)]
 
         # Text / Image 投影头（可学习，将预提取特征映射到与 EEG 对齐的公共空间）
         # self.text_projector = nn.Sequential(
@@ -136,7 +132,7 @@ class ExtractorModel(pl.LightningModule):
                 self.image_align_proj = _make_proj()
                 torch.set_rng_state(rng_state)
 
-                # 加载 fusion8 预训练权重
+                # Load the dataset-specific frozen alignment weights.
                 pretrained_text = getattr(cfg, 'pretrained_text_proj', '')
                 pretrained_image = getattr(cfg, 'pretrained_image_proj', '')
                 if pretrained_text:
@@ -229,21 +225,6 @@ class ExtractorModel(pl.LightningModule):
         txt_feat = txt_feat.float()
         img_feat = img_feat.float()
         labels = labels.long()
-
-        # ===== 二分类预训练：剔除中性样本 =====
-        n_classes = getattr(self, 'n_class', 9)
-        if n_classes == 2:
-            not_neutral = (labels != 4)  # label 4 = 中性
-            eeg = eeg[not_neutral]
-            txt_feat = txt_feat[not_neutral]
-            img_feat = img_feat[not_neutral]
-            labels = labels[not_neutral]
-            # 重映射: 负类(0-3)→0, 正类(5-8)→1
-            labels = (labels >= 5).long()
-            if vid_ids is not None:
-                vid_ids = vid_ids[not_neutral]
-            if sub_ids is not None:
-                sub_ids = sub_ids[not_neutral]
 
         # 如果特征维度是 (Batch, Seq, Dim)，取平均变为 (Batch, Dim)
         if txt_feat.ndim == 3: txt_feat = txt_feat.mean(dim=1)
@@ -391,20 +372,6 @@ class ExtractorModel(pl.LightningModule):
         # 这里的 labels 仅仅是为了算 Probe Loss 评估用的，绝对不进对齐 Loss
         labels = labels.long()
 
-        # ===== 二分类预训练：剔除中性样本（与 training_step 保持一致）=====
-        n_classes = getattr(self, 'n_class', 9)
-        if n_classes == 2:
-            not_neutral = (labels != 4)
-            eeg = eeg[not_neutral]
-            txt_feat = txt_feat[not_neutral]
-            img_feat = img_feat[not_neutral]
-            labels = labels[not_neutral]
-            labels = (labels >= 5).long()
-            if vid_ids is not None:
-                vid_ids = vid_ids[not_neutral]
-            if sub_ids is not None:
-                sub_ids = sub_ids[not_neutral]
-
         if txt_feat.ndim == 3: txt_feat = txt_feat.mean(dim=1)
         txt_feat = F.normalize(txt_feat, dim=1)
         if img_feat.ndim == 3: img_feat = img_feat.mean(dim=1)
@@ -546,8 +513,7 @@ class ExtractorModel(pl.LightningModule):
         # 🌟 [新增] Backbone 原型分类 (Prototype Accuracy)
         # 用 backbone 原始特征做最近邻分类，直接衡量特征空间类别可分性
         # =====================================================
-        EMOTION_NAMES = ['Anger', 'Disgust', 'Fear', 'Sadness', 'Neutral',
-                         'Amusement', 'Inspiration', 'Joy', 'Tenderness']
+        emotion_names = [name.split('_', 1)[-1] for name in self.emotion_names]
 
         self.model.set_saveFea(True)
         with torch.no_grad():
@@ -597,9 +563,9 @@ class ExtractorModel(pl.LightningModule):
                 if mask.sum() > 0:
                     cls_acc = (pred_labels_proto[mask] == lbl).float().mean()
                     lbl_idx = lbl.item()
-                    if 0 <= lbl_idx < len(EMOTION_NAMES):
-                        name = EMOTION_NAMES[lbl_idx]
-                        show_bar = name in ['Anger', 'Tenderness', 'Disgust', 'Fear']
+                    if 0 <= lbl_idx < len(emotion_names):
+                        name = emotion_names[lbl_idx]
+                        show_bar = self.n_class <= 3
                         self.log(f'val/Proto_{name}', cls_acc, prog_bar=show_bar)
         # =========================================================
 
@@ -631,8 +597,8 @@ class MLPModel(pl.LightningModule):
         self.wd = cfg.wd
         self.criterion = torch.nn.CrossEntropyLoss()
 
-        # --- Metrics ---
-        num_classes = 9
+        # Keep downstream metrics consistent with the selected dataset/task.
+        num_classes = int(cfg.out_dim)
         self.train_acc = Accuracy(task="multiclass", num_classes=num_classes)
         self.val_acc = Accuracy(task="multiclass", num_classes=num_classes)
         self.val_f1 = F1Score(task="multiclass", num_classes=num_classes, average='macro')
