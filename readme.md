@@ -76,8 +76,8 @@ CLIP features. The scripts under `FACED/` can be used to regenerate them.
 SEED raw 1024-dimensional text and image features are also distributed as
 GitHub Release assets instead of regular Git files:
 
-- [SEED text features](https://github.com/jianjiez100-sys/AMA-EEG/releases/download/v1.0.0/seed_text_features_timelen5_timestep2_1024.tar.gz)
-- [SEED image features](https://github.com/jianjiez100-sys/AMA-EEG/releases/download/v1.0.0/seed_image_features_clip_vit_centercrop_timelen5_timestep2.tar.gz)
+- [SEED text features](https://github.com/jianjiez100-sys/AMA-EEG/releases/download/v1.1.0/seed_text_features_timelen5_timestep2_1024.tar.gz)
+- [SEED image features](https://github.com/jianjiez100-sys/AMA-EEG/releases/download/v1.1.0/seed_image_features_clip_vit_centercrop_timelen5_timestep2.tar.gz)
 
 Extract both archives under `features/SEED/`:
 
