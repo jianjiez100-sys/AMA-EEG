@@ -1,4 +1,17 @@
-% This is the script for SEED_V EEG dataset preprocess, including:
+function AutoICA_SEED(data_dir, channel_file, chanlocs_file, coords_matrix_file, output_root)
+%AUTOICA_SEED Preprocess the SEED EEG dataset with explicit input paths.
+%
+% Example:
+%   AutoICA_SEED('/data/SEED/Preprocessed_EEG', ...
+%       '/data/SEED/chn_names.mat', ...
+%       '/data/SEED/SEED_10_20_standard.ced', ...
+%       '/data/SEED/SEED_coords_matrix.mat', ...
+%       '/data/SEED/processed');
+%
+% Requirements: FieldTrip, EEGLAB with ICLabel, NoiseTools, and the custom
+% nt_interpolate_bad_channels_custom function used by the original pipeline.
+%
+% This is the pipeline for SEED EEG dataset preprocessing, including:
 % (1) Downsample
 % (2) Band pass Filter
 % (3) Divide into trials, specifically, data matrix for 1 subject 1 vedio
@@ -8,15 +21,35 @@
 % (7) Reorder trials
 % (8) Save data to .mat files
 
-clear;
-close all;
-clc;
+if nargin ~= 5
+    error(['Usage: AutoICA_SEED(data_dir, channel_file, chanlocs_file, ' ...
+           'coords_matrix_file, output_root)']);
+end
+
+required_files = {channel_file, chanlocs_file, coords_matrix_file};
+for file_idx = 1:numel(required_files)
+    if ~isfile(required_files{file_idx})
+        error('Required file does not exist: %s', required_files{file_idx});
+    end
+end
+if ~isfolder(data_dir)
+    error('SEED input directory does not exist: %s', data_dir);
+end
+if exist('nt_interpolate_bad_channels_custom', 'file') ~= 2
+    error(['Missing nt_interpolate_bad_channels_custom.m. Add the original ' ...
+           'validated interpolation helper to the MATLAB path before running.']);
+end
+
+coords_data = load(coords_matrix_file, 'coords_matrix');
+if ~isfield(coords_data, 'coords_matrix')
+    error('Coordinate file does not contain coords_matrix: %s', coords_matrix_file);
+end
+SEED_coords_matrix = coords_data.coords_matrix;
 
 bpfreq = [0.5, 47];
 debug = 0;
 Fs = 200;
 
-data_dir = "C:\Emotion_Data\SEED\Preprocessed_EEG";
 % 获取所有符合条件的.mat文件
 all_files = dir(fullfile(data_dir, '*_*.mat'));
 
@@ -30,11 +63,8 @@ end
 unique_names = unique(sub_names);
 n_sub = numel(unique_names);
 
-channel_dir = 'C:\Emotion_Data\SEED'; % 请替换为实际路径
-channel_file = 'chn_names.mat'; 
-
 % 加载通道标签文件
-channel_path = fullfile(channel_dir, channel_file);
+channel_path = channel_file;
 if exist(channel_path, 'file')
     chan_data = load(channel_path);
     if isfield(chan_data, 'chn_names')
@@ -44,7 +74,7 @@ if exist(channel_path, 'file')
             error('通道标签格式错误：chn_names应为包含字符串的cell数组');
         end
     else
-        error('通道文件%s中未找到chn_names变量', channel_file);
+        error('通道文件%s中未找到chn_names变量', channel_path);
     end
 else
     error('通道文件不存在：%s', channel_path);
@@ -176,8 +206,6 @@ for sub_id = 1:n_sub
 
     %% 1st Interpolate bad channels
 
-    load chn_coords
-    load('chn_coords')
     keep_channels = [1, 3, 6, 14];
 
     bad_channel_type_1 = cell(1, 45);
@@ -205,7 +233,6 @@ for sub_id = 1:n_sub
         else
             fprintf('1st bad_channel inter - Trial %d No bad channels identified\n\n', i)
         end
-        SEED_coords_matrix = load('SEED_coords_matrix.mat').coords_matrix;
         if iBad
             [toGood,fromGood] = nt_interpolate_bad_channels_custom(x, iBad, SEED_coords_matrix);
             x = x * (toGood * fromGood);
@@ -216,7 +243,7 @@ for sub_id = 1:n_sub
     %% Auto ICA
     % IClabel: Brain, Muscle, Eye, Heart, Line Noise, Channel Noise, Other.
     params_ICLabel_def = [0 0;0.8 1; 0 0; 0 0; 0 0; 0 0; 0 0]; % 使用默认阈值
-    chanlocs = readlocs('C:\Emotion_Classification\AutoICA\SEED_10_20_standard.ced');
+    chanlocs = readlocs(chanlocs_file);
     data_ica = data_trialed; % 初始化处理后的数据结构
     
     for trial_idx = 1:numel(data_trialed.trial)
@@ -285,7 +312,7 @@ for sub_id = 1:n_sub
     end
 % 
 %     EEGtemp = [];
-%     EEGtemp.filepath = sprintf('C:\Emotion Classification\prep_code_clPaper\Processed\subject_%d\trial_%d', sub_id, i);
+%     EEGtemp.filepath = fullfile(output_root, sprintf('subject_%d', sub_id), sprintf('trial_%d', i));
 %     EEGtemp.filename = sprintf('subject_%d_trial_%d', sub_id, i);
 %     EEGtemp.data = cat(2, data_trialed.trial{:});
 %     %           visual_check_data(EEGtemp.data, hdr.label, 50, 0, 'Before-ICA', resamplefs);
@@ -300,7 +327,7 @@ for sub_id = 1:n_sub
 %     EEGtemp.srate = resamplefs;
 %     EEGtemp.xmin = 0;
 %     EEGtemp.xmax = (EEGtemp.pnts - 1) / EEGtemp.srate;
-%     EEGtemp.chanlocs = readlocs('C:\Emotion_Classification\AutoICA\SEED_10_20_standard.ced');
+%     EEGtemp.chanlocs = readlocs(chanlocs_file);
 %     %               visual_check_data(EEGtemp.data, hdr.label, 50, 0, ['trial ', num2str(i)], resamplefs)
 %     EEGtemp = pop_runica(EEGtemp,'icatype','runica','concatcond','off');
 %     EEGtemp = pop_iclabel(EEGtemp,'default');
@@ -372,7 +399,6 @@ for sub_id = 1:n_sub
         else
             fprintf('2st bad_channel inter - Trial %d No bad channels identified\n\n', i)
         end
-        SEED_coords_matrix = load('SEED_coords_matrix.mat').coords_matrix;
         if iBad
             [toGood,fromGood] = nt_interpolate_bad_channels_custom(x, iBad, SEED_coords_matrix);
             x = x * (toGood * fromGood);
@@ -416,10 +442,11 @@ for sub_id = 1:n_sub
     end
     thresh = 'def';
     save_folder_name = sprintf('Processed_data_filter_%.2f_%.2f_AutoICA_%s_Threshold', bpfreq(1), bpfreq(2), thresh);
-    save_dir = fullfile('C:\Emotion Classification\Processed\SEED', save_folder_name, 'data');
-    if ~exist(save_dir)
+    save_dir = fullfile(output_root, save_folder_name, 'data');
+    if ~exist(save_dir, 'dir')
         mkdir(save_dir);
     end
     save(fullfile(save_dir, sprintf('Sub_%d_all', sub_id)), 'data_all_cleaned', 'n_samples_one');
 end
 
+end

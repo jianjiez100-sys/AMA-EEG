@@ -44,7 +44,8 @@ train:
   mask_mode: 'vid_sub'  # 假阴性掩码模式: vid_sub(基于视频+受试者ID) / threshold(文本相似度阈值) / none(不掩码)
   max_epochs: 15
   min_epochs: 3
-  patience: 3
+  # Matches the accepted paper's first-stage early-stopping protocol.
+  patience: 5
   num_workers: 32
   restart_times: 1
   sampler_times: 1

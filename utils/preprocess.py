@@ -1,3 +1,4 @@
+import argparse
 import os
 import numpy as np
 import random
@@ -32,7 +33,15 @@ def FACED_old2new(old_dir,new_dir):
             sio.savemat(new_fn, {'data_all_cleaned': new_data,'n_samples_one':n_samples_one})
             print()
             
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Convert the original FACED pickle files to MATLAB format."
+    )
+    parser.add_argument("input_dir", help="Directory containing the FACED pickle files")
+    parser.add_argument("output_dir", help="Directory for the converted .mat files")
+    return parser.parse_args()
+
+
 if __name__ == '__main__':
-    old_dir = '/mnt/data/model_weights/grm/FACED/processed_data/'
-    new_dir = '/mnt/data/model_weights/grm/FACED_old/processed_data/'
-    FACED_old2new(old_dir,new_dir)
+    args = parse_args()
+    FACED_old2new(args.input_dir, args.output_dir)

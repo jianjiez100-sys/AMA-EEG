@@ -1,0 +1,48 @@
+cff-version: 1.2.0
+message: >-
+  If you use AMA-EEG, please cite the accepted paper and this software.
+  The DOI will be added after publication.
+title: AMA-EEG
+type: software
+authors:
+  - family-names: Zhou
+    given-names: Jianjie
+  - family-names: Cao
+    given-names: Shilei
+  - family-names: Xu
+    given-names: Chengjian
+  - family-names: Liao
+    given-names: Zelin
+  - family-names: Zhang
+    given-names: Haochuan
+  - family-names: Zheng
+    given-names: Qingqing
+repository-code: https://github.com/jianjiez100-sys/AMA-EEG
+url: https://github.com/jianjiez100-sys/AMA-EEG
+license: MIT
+keywords:
+  - EEG
+  - emotion recognition
+  - multimodal alignment
+  - contrastive learning
+  - cross-subject learning
+preferred-citation:
+  type: article
+  title: >-
+    AMA-EEG: Adaptive Multimodal Alignment for Cross-Subject EEG Emotion
+    Recognition
+  authors:
+    - family-names: Zhou
+      given-names: Jianjie
+    - family-names: Cao
+      given-names: Shilei
+    - family-names: Xu
+      given-names: Chengjian
+    - family-names: Liao
+      given-names: Zelin
+    - family-names: Zhang
+      given-names: Haochuan
+    - family-names: Zheng
+      given-names: Qingqing
+  journal: IEEE Transactions on Affective Computing
+  notes: Accepted for publication; DOI forthcoming.

@@ -1,0 +1,7 @@
+# Optional dependencies for the scripts under FACED/.
+# Install the core environment first with requirements.txt.
+-r requirements.txt
+
+accelerate==1.12.0
+pillow==12.2.0
+qwen-vl-utils==0.0.14

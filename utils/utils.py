@@ -6,10 +6,7 @@ import shutil
 import random
 import logging
 import numpy as np
-import gymnasium as gym
 import matplotlib.pyplot as plt
-from gymnasium.spaces import MultiDiscrete, Discrete, Box
-from moviepy.editor import VideoFileClip, concatenate_videoclips
 
 
 def config_logging(log_file="main.log", log_level=logging.INFO):
@@ -23,7 +20,7 @@ def config_logging(log_file="main.log", log_level=logging.INFO):
     file_handler.setFormatter(logging.Formatter(log_format, datefmt=date_format))
     logging.basicConfig(level=log_level, handlers=[stdout_handler, file_handler])
     
-def set_seed_everywhere(env: gym.Env, seed=0):
+def set_seed_everywhere(env, seed=0):
     env.action_space.seed(seed)
     random.seed(seed)
     np.random.seed(seed)
