@@ -54,10 +54,10 @@ python train_ext.py data=SEED data.data_dir=/path/to/SEED_EEG_data
 ### FACED text and image features
 
 FACED raw CLIP text and image features are published in
-[GitHub Release v1.0.0](https://github.com/jianjiez100-sys/AMA-EEG/releases/tag/v1.0.0):
+[GitHub Release v1.1.0](https://github.com/jianjiez100-sys/AMA-EEG/releases/tag/v1.1.0):
 
-- [Text features](https://github.com/jianjiez100-sys/AMA-EEG/releases/download/v1.0.0/text_features_timelen5_timestep2_1024.tar.gz)
-- [Image features](https://github.com/jianjiez100-sys/AMA-EEG/releases/download/v1.0.0/image_features_clip_vit_centercrop_timelen5_timestep2.tar.gz)
+- [Text features](https://github.com/jianjiez100-sys/AMA-EEG/releases/download/v1.1.0/faced_text_features_timelen5_timestep2_1024.tar.gz)
+- [Image features](https://github.com/jianjiez100-sys/AMA-EEG/releases/download/v1.1.0/faced_image_features_clip_vit_centercrop_timelen5_timestep2.tar.gz)
 
 Extract both archives under `features/` so that the directory names match
 `cfgs/data/FACED.yaml`:
