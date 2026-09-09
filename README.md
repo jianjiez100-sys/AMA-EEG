@@ -80,8 +80,12 @@ CPU execution is also available by adding
 
 Raw EEG data are not redistributed by this repository. Download FACED from
 [Synapse](https://www.synapse.org/Synapse:syn50614194/wiki/620378) and request
-SEED from its official provider, then place or link the processed data at the
-configured paths:
+SEED through its [official dataset page](https://bcmi.sjtu.edu.cn/home/seed/),
+then place or link the processed data at the configured paths. SEED access is
+limited to academic research, and downloaded dataset content must not be
+redistributed; review the [SEED license
+agreement](https://bcmi.sjtu.edu.cn/~seed/resource/license/SEED%20license.pdf)
+before applying.
 
 See [`DATA.md`](DATA.md) for the data/license boundary, local directory policy,
 release-asset checksums, and the status of repository-hosted derived files.

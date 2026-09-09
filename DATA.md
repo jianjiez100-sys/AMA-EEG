@@ -8,17 +8,23 @@ permission to redistribute the underlying FACED or SEED EEG recordings.
 
 - **FACED:** request access from the [official Synapse
   page](https://www.synapse.org/Synapse:syn50614194/wiki/620378).
-- **SEED:** request access from the dataset's official provider.
+- **SEED:** request access from the [official dataset
+  page](https://bcmi.sjtu.edu.cn/home/seed/) and review its [license
+  agreement](https://bcmi.sjtu.edu.cn/~seed/resource/license/SEED%20license.pdf).
 
 Place the datasets locally under `data/FACED/` and `data/SEED/`, or override
 `data.data_dir` on the command line. These directories are ignored by Git.
 Users are responsible for complying with the datasets' access agreements,
 ethics approvals, and restrictions on redistribution.
 
+The SEED license limits use to academic research and prohibits redistribution
+of downloaded dataset content or private access links.
+
 ## Released text and image features
 
-The v1.1.0 release assets contain stimulus-derived CLIP features, not raw EEG.
-They are required for the multimodal pretraining stage. Verify downloads with:
+The v1.1.0 release assets contain only precomputed `.npy` CLIP feature tensors;
+they do not contain raw EEG, source videos, or source image frames. They are
+required for the multimodal pretraining stage. Verify downloads with:
 
 ```bash
 sha256sum <downloaded-file>
