@@ -3,7 +3,7 @@ import numpy as np
 
 # ================= 配置区域 =================
 # 输入: CLIP 提取好的文本特征 (1024维)
-# 🔧 请修改为你的文本特征目录
+# 请修改为你的文本特征目录。
 INPUT_DIR = r"./features/text_features_1024_output"
 
 # 输出: 切片后的保存路径
@@ -44,7 +44,7 @@ def process_text_features():
 
             # 维度校验
             if feats.shape[1] != FEATURE_DIM:
-                print(f"⚠️ Error: {vid_name} 维度不匹配! 实际: {feats.shape[1]}, 预期: {FEATURE_DIM}")
+                print(f"Error: {vid_name} 维度不匹配。实际: {feats.shape[1]}, 预期: {FEATURE_DIM}")
                 continue
 
             # 对齐逻辑: 取最后 30 秒 (与视频特征对齐)
@@ -53,7 +53,7 @@ def process_text_features():
             else:
                 full_timeline[-t_len:] = feats
         else:
-            print(f"⚠️ Warning: Missing file {vid_name}_features.npy, using zeros.")
+            print(f"Warning: missing file {vid_name}_features.npy; using zeros.")
 
         # 2. 滑动窗口切片逻辑
         segments = []
@@ -71,7 +71,7 @@ def process_text_features():
         np.save(save_path, segments)
         print(f"Processed {vid_name}: shape {segments.shape}")
 
-    print("\n✅ 1024维文本特征切片预处理完成！")
+    print("\n1024维文本特征切片预处理完成。")
 
 if __name__ == "__main__":
     process_text_features()

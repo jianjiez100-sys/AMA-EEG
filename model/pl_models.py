@@ -125,7 +125,7 @@ class ExtractorModel(pl.LightningModule):
         if self._need_projectors:
             # ======== Align 层 (独立前置, 冻结, fp32) ========
             if self._has_align:
-                # 保存 RNG → 创建 Align → 恢复 RNG → 创建 Projector
+                # Save RNG -> create Align -> restore RNG -> create Projector.
                 # 确保 Projector 初始化与原版项目完全一致
                 rng_state = torch.get_rng_state()
                 self.text_align_proj = _make_proj()
@@ -140,13 +140,13 @@ class ExtractorModel(pl.LightningModule):
                     if any(k.startswith('net.') for k in state.keys()):
                         state = {k.replace('net.', ''): v for k, v in state.items()}
                     self.text_align_proj.load_state_dict(state, strict=True)
-                    print(f"📦 [Align] Loaded text_align from {pretrained_text}")
+                    print(f"[Align] Loaded text_align from {pretrained_text}")
                 if pretrained_image:
                     state = torch.load(pretrained_image, map_location='cpu', weights_only=True)
                     if any(k.startswith('net.') for k in state.keys()):
                         state = {k.replace('net.', ''): v for k, v in state.items()}
                     self.image_align_proj.load_state_dict(state, strict=True)
-                    print(f"📦 [Align] Loaded image_align from {pretrained_image}")
+                    print(f"[Align] Loaded image_align from {pretrained_image}")
 
                 # 永久 eval + fp32 + 冻结
                 self.text_align_proj.eval()
@@ -168,7 +168,7 @@ class ExtractorModel(pl.LightningModule):
                     p.requires_grad = False
                 for p in self.image_align_proj.parameters():
                     p.requires_grad = False
-                print(f"🔒 Align frozen, fp32, eval mode")
+                print("Align frozen in fp32 evaluation mode")
 
             # ======== Projector (可训练, 随机初始化, 与原版一致) ========
             self.text_projector = _make_proj()
@@ -186,7 +186,7 @@ class ExtractorModel(pl.LightningModule):
             self.probe_loss_weight = getattr(cfg, 'probe_loss_weight', 1.0)
         elif self.pretrain_mode == 3:
             self.fusion_alpha = getattr(cfg, 'fusion_alpha', 0.5)
-            print(f"🔒 Static Fusion α={self.fusion_alpha}")
+            print(f"Static fusion alpha={self.fusion_alpha}")
             self.distill_criterion = MultiModalInfoNCELoss(temperature=cfg.loss_temp, threshold=cfg.loss_threshold, mask_mode=cfg.mask_mode)
         elif self.pretrain_mode == 0:
             self.criterion = MultiModalInfoNCELoss(temperature=cfg.loss_temp, threshold=cfg.loss_threshold, mask_mode=cfg.mask_mode)
@@ -230,7 +230,7 @@ class ExtractorModel(pl.LightningModule):
         if txt_feat.ndim == 3: txt_feat = txt_feat.mean(dim=1)
         if img_feat.ndim == 3: img_feat = img_feat.mean(dim=1)
 
-        # 可学习线性投影: 1664 → 1024 (替代 PCA)
+        # 可学习线性投影: 1664 -> 1024 (替代 PCA)
         if hasattr(self, 'image_input_proj'):
             img_feat = self.image_input_proj(img_feat)
 
@@ -261,7 +261,7 @@ class ExtractorModel(pl.LightningModule):
             img_feat_raw = img_feat
             if self._has_align:
                 with torch.no_grad():
-                    txt_feat = self.text_align_proj(txt_feat)  # raw → projected
+                    txt_feat = self.text_align_proj(txt_feat)  # raw -> projected
                     img_feat = self.image_align_proj(img_feat)
 
             # === Step 2: Projector 用投影特征, Probe 用原始特征 ===
@@ -465,7 +465,7 @@ class ExtractorModel(pl.LightningModule):
         total_loss = self.w_clip * loss
 
         # =========================================================
-        # 🚀 [新增监控指标：跨模态对齐效果体检]
+        # 跨模态对齐监控指标。
         # =========================================================
         if target_feat is not None and proj_eeg is not None:
             # 1. 计算当前批次的余弦相似度矩阵
@@ -498,7 +498,7 @@ class ExtractorModel(pl.LightningModule):
             self.log('val/Sim_Gap', sim_gap, prog_bar=True)
 
             # =====================================================
-            # 🌟 [新增]：零样本 9 分类情感准确率 (Zero-Shot Accuracy)
+            # 零样本分类准确率 (Zero-Shot Accuracy)。
             # =====================================================
             # 逻辑：脑电找到最相似的目标特征 (文本/融合)，看看那个目标特征属于什么情感
             best_match_indices = sim_matrix.argmax(dim=1)
@@ -510,7 +510,7 @@ class ExtractorModel(pl.LightningModule):
         # =========================================================
 
         # =====================================================
-        # 🌟 [新增] Backbone 原型分类 (Prototype Accuracy)
+        # Backbone 原型分类 (Prototype Accuracy)。
         # 用 backbone 原始特征做最近邻分类，直接衡量特征空间类别可分性
         # =====================================================
         emotion_names = [name.split('_', 1)[-1] for name in self.emotion_names]

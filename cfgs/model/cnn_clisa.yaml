@@ -1,12 +1,12 @@
 _target_: model.models.ConvNet_complete_baseline_new
-n_timeFilters: 16        # ⬅️ 保持原值或小幅增加
-timeFilterLen: 30        # ⬅️ 用回原值
-n_spatialFilters: 16     # ⬅️ 保持原值
-stimeFilterLen: 3        # ⬅️ 用回原值
-avgPoolLen: 15           # ⬅️ 用回原值  
-timeSmootherLen: 7       # ⬅️ 用回原值
+n_timeFilters: 16        # 保持原值或小幅增加
+timeFilterLen: 30        # 使用原值
+n_spatialFilters: 16     # 保持原值
+stimeFilterLen: 3        # 使用原值
+avgPoolLen: 15           # 使用原值
+timeSmootherLen: 7       # 使用原值
 n_channs: ${data.n_channs}
-stratified: ['initial', 'middle1', 'middle2']  # ⬅️ 用回原值
-multiFact: 2             # ⬅️ 用回原值
+stratified: ['initial', 'middle1', 'middle2']  # 使用原值
+multiFact: 2             # 使用原值
 saveFea: False
 extract_mode: ${ext_fea.mode}

@@ -196,7 +196,7 @@ class SupConLoss(nn.Module):
 class MultiModalInfoNCELoss(nn.Module):
     """
     专门用于多模态对齐的 Loss (EEG <-> Text)
-    🔥 升级版：引入 Text-Guided Similarity Masking，防止假阴性（False Negatives）干扰
+    引入 Text-Guided Similarity Masking，减少假阴性（False Negatives）干扰。
     """
 
     def __init__(self, temperature=0.15, threshold=1.0, symmetric=True,
@@ -207,18 +207,18 @@ class MultiModalInfoNCELoss(nn.Module):
             threshold:   相似度阈值。仅 mask_mode='threshold' 时生效。
             symmetric:   是否开启双向对比 (True: 双向 EEG<->Text, False: 单向 EEG->Text)。
             mask_mode:   假阴性掩码模式:
-                         'vid_sub'   — 基于视频+受试者ID (同视频+不同受试者→mask)
-                         'threshold' — 基于文本相似度阈值 (text_sim > threshold → mask)
-                         'none'      — 不掩码
+                         'vid_sub'   - 基于视频+受试者ID (同视频+不同受试者 -> mask)
+                         'threshold' - 基于文本相似度阈值 (text_sim > threshold -> mask)
+                         'none'      - 不掩码
         """
         # if pretrain_mode == 0:
-        #     # 📝 文本模式：使用低阈值，保护队友！
+        #     # 文本模式使用较低阈值以减少假阴性。
         #     # 结合你之前的统计，同类文本均值约 0.5，所以设为 0.45 甚至 0.4 最好
         #     threshold = MultiModalInfoNCELoss(temperature=0.1, threshold=0.48)
         #     针对real_describe使用的是0.48，对于这里最新的clear_divide使用的是0.40
         #
         # elif pretrain_mode == 1:
-        #     # 🖼️ 图像模式：使用高阈值，过滤相邻帧冗余！
+        #     # 图像模式使用较高阈值以过滤相邻帧冗余。
         #     threshold = MultiModalInfoNCELoss(temperature=0.1, threshold=0.78)
         # 可以将这里的图像的掩码参数设置为0.78，主要目的是不要让同一视频下面的样本相互排斥
         super(MultiModalInfoNCELoss, self).__init__()
@@ -240,9 +240,9 @@ class MultiModalInfoNCELoss(nn.Module):
             preds:            (Batch, Embed_Dim) -> 脑电特征 (EEG Features)
             targets:          (Batch, Embed_Dim) -> 投影后的目标特征，用于计算 logits
             original_targets: (Batch, Embed_Dim) -> 原始目标特征 (已弃用, 保留兼容)
-            vid_ids:          (Batch,) -> 视频 ID. 同视频→同文本→假阴性, 需 mask.
+            vid_ids:          (Batch,) -> 视频 ID. 同视频 -> 同文本 -> 假阴性, 需 mask.
             sub_ids:          (Batch,) -> 受试者 ID. 仅 mask 同视频+不同受试者.
-                             同视频+同受试者+不同时刻 → 仍为有效负样本.
+                             同视频+同受试者+不同时刻 -> 仍为有效负样本.
         """
         device = preds.device
 
@@ -259,7 +259,7 @@ class MultiModalInfoNCELoss(nn.Module):
         # 3. ================= [计算相似度矩阵] =================
         logits = torch.matmul(preds, targets.T) / self.temperature
 
-        # 4. ================= [🔥 掩码 (由 mask_mode 控制)] =================
+        # 4. ================= [掩码 (由 mask_mode 控制)] =================
         with torch.no_grad():
             if self.mask_mode == 'vid_sub':
                 if vid_ids is not None and sub_ids is not None:
@@ -271,7 +271,7 @@ class MultiModalInfoNCELoss(nn.Module):
                     mask = same_vid & (~same_sub)
                     mask.fill_diagonal_(False)
                 elif vid_ids is not None:
-                    # 降级: 仅 vid_ids → mask 所有同视频对
+                    # 降级: 仅使用 vid_ids，mask 所有同视频对。
                     vid_ids = vid_ids.view(-1)
                     mask = torch.eq(vid_ids.unsqueeze(0), vid_ids.unsqueeze(1))
                     mask.fill_diagonal_(False)
@@ -318,12 +318,12 @@ class MultiModalInfoNCELoss(nn.Module):
 
 class CrossModalSupConLoss(nn.Module):
     """
-    跨模态专用 SupCon Loss：只在 EEG×Text 矩阵上计算，
-    完全不包含 EEG↔EEG 或 Text↔Text 的 intra-modal 对。
+    跨模态专用 SupCon Loss：只在 EEG x Text 矩阵上计算，
+    完全不包含 EEG-to-EEG 或 Text-to-Text 的 intra-modal 对。
     同情感的 (EEG_i, Text_j) 视为正样本，从根本上消除假阴性。
 
-    Loss = 0.5 * L(EEG→Text) + 0.5 * L(Text→EEG)
-    其中 L(EEG→Text): 每条 EEG_i 在所有 Text 中找同情感的 Text_j
+    Loss = 0.5 * L(EEG->Text) + 0.5 * L(Text->EEG)
+    其中 L(EEG->Text): 每条 EEG_i 在所有 Text 中找同情感的 Text_j
     """
 
     def __init__(self, temperature=0.07):
@@ -333,9 +333,9 @@ class CrossModalSupConLoss(nn.Module):
     def forward(self, preds, targets, labels):
         """
         Args:
-            preds:   (B, D) → EEG 特征
-            targets: (B, D) → Text 特征
-            labels:  (B,)   → 情感类别标签
+            preds:   (B, D) -> EEG 特征
+            targets: (B, D) -> Text 特征
+            labels:  (B,)   -> 情感类别标签
         """
         device = preds.device
         B = preds.shape[0]
@@ -356,7 +356,7 @@ class CrossModalSupConLoss(nn.Module):
         labels_col = labels.view(-1, 1)
         pos_mask = torch.eq(labels_col, labels_col.T).float().to(device)  # (B, B)
 
-        # --- EEG → Text 方向 ---
+        # --- EEG -> Text 方向 ---
         sim_e2t = sim - sim.max(dim=1, keepdim=True).values.detach()  # 数值稳定
         exp_e2t = torch.exp(sim_e2t)
         log_prob_e2t = sim_e2t - torch.log(exp_e2t.sum(dim=1, keepdim=True))
@@ -364,7 +364,7 @@ class CrossModalSupConLoss(nn.Module):
         loss_e2t = -(pos_mask * log_prob_e2t).sum(dim=1) / n_pos_e
         loss_e2t = loss_e2t.mean()
 
-        # --- Text → EEG 方向（cosine 对称，直接转置）---
+        # --- Text -> EEG 方向（cosine 对称，直接转置）---
         # sim_t2e[a,b] = cosine(Text_a, EEG_b)；row=Text anchor，col=EEG target
         sim_t2e = sim.T - sim.T.max(dim=1, keepdim=True).values.detach()
         exp_t2e = torch.exp(sim_t2e)
@@ -430,9 +430,9 @@ class VideoSupConLoss(nn.Module):
     负样本：不同视频的所有样本（正常推远）
 
     实现方式：
-    - 构造 vid_id 相同 → 正样本 mask
+    - 构造 vid_id 相同 -> 正样本 mask
     - 正样本从分母中移除（SupCon 标准做法），只有负样本产生斥力
-    - 双向对称：EEG→Target + Target→EEG
+    - 双向对称：EEG->Target + Target->EEG
     """
 
     def __init__(self, temperature=0.07):
@@ -442,9 +442,9 @@ class VideoSupConLoss(nn.Module):
     def forward(self, preds, targets, vid_ids):
         """
         Args:
-            preds:    (B, D) → EEG 投影特征
-            targets:  (B, D) → Text/Image 投影特征
-            vid_ids:  (B,)   → 视频 ID，同 vid_id 视为正样本
+            preds:    (B, D) -> EEG 投影特征
+            targets:  (B, D) -> Text/Image 投影特征
+            vid_ids:  (B,)   -> 视频 ID，同 vid_id 视为正样本
         """
         device = preds.device
         B = preds.shape[0]
@@ -460,14 +460,14 @@ class VideoSupConLoss(nn.Module):
         # 跨模态相似度矩阵 (B, B): sim[i,j] = cosine(EEG_i, Target_j)
         sim = torch.matmul(preds, targets.T) / self.temperature
 
-        # 正样本 mask：同 vid_id → True，对角线也包含在内
+        # 正样本 mask：同 vid_id -> True，对角线也包含在内
         vid_ids = vid_ids.view(-1)
         pos_mask = torch.eq(vid_ids.unsqueeze(0), vid_ids.unsqueeze(1)).float().to(device)  # (B, B)
 
         # 负样本 mask：不同 vid_id，用于构造分母
         neg_mask = 1.0 - pos_mask  # (B, B)
 
-        # --- EEG → Target 方向 ---
+        # --- EEG -> Target 方向 ---
         sim_e2t = sim - sim.max(dim=1, keepdim=True).values.detach()
         exp_e2t = torch.exp(sim_e2t)
 
@@ -480,7 +480,7 @@ class VideoSupConLoss(nn.Module):
         loss_e2t = -(pos_mask * log_prob_e2t).sum(dim=1) / n_pos
         loss_e2t = loss_e2t.mean()
 
-        # --- Target → EEG 方向（对称）---
+        # --- Target -> EEG 方向（对称）---
         sim_t2e = sim.T - sim.T.max(dim=1, keepdim=True).values.detach()
         exp_t2e = torch.exp(sim_t2e)
 
@@ -552,7 +552,7 @@ class SemanticVideoSupConLoss(nn.Module):
         # 综合判定：同视频 且 语义连贯 的才是正样本
         pos_mask = (same_video_mask & semantic_sim_mask).float().to(device)
 
-        # 🚨 保命设定：对角线（自己和自己）必须无条件是正样本
+        # 对角线元素必须始终标记为正样本。
         pos_mask.fill_diagonal_(1.0)
 
         # 负样本：其余全为负样本（自然包含了同视频但语义突变的样本，强迫模型推开它们！）

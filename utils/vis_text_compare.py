@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import os
 
 # ==================== 配置 ====================
-# 🔧 请修改为你的特征文件目录
+# 请修改为你的特征文件目录。
 TEXT_ORIG_DIR = "../features/text_timelen5_timestep2_1024_match_image"
 TEXT_ALIGN_DIR = "../features/text_timelen5_timestep2_1024_match_image_aligned"
 IMAGE_DIR = "../features/image_features_clip_vit_centercrop_timelen5_timestep2"
@@ -114,7 +114,7 @@ step = max(1, n_orig // 100)
 for j in range(0, n_orig, step):
     ax.annotate("", xy=xy_align[j], xytext=xy_orig[j],
                 arrowprops=dict(arrowstyle="->", color="gray", lw=0.3, alpha=0.3))
-ax.set_title("Shift: Original → Aligned Text", fontsize=14, fontweight="bold")
+ax.set_title("Shift: Original -> Aligned Text", fontsize=14, fontweight="bold")
 ax.legend(markerscale=3, fontsize=11)
 ax.set_xticks([]); ax.set_yticks([])
 

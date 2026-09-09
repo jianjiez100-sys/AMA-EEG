@@ -9,7 +9,7 @@ from qwen_vl_utils import process_vision_info
 # ================= 配置区域 =================
 
 # 1. 输入数据路径 (FACED 数据集文件夹)
-# 🔧 请修改为你的帧图像目录
+# 请修改为你的帧图像目录。
 INPUT_ROOT = r"./FACED_frames"
 
 # 2. 输出保存路径 (建议修改一下输出文件夹名，以区分之前的带有情感先验的数据)
@@ -21,7 +21,7 @@ CACHE_DIR = r"./huggingface_cache"
 # 4. 模型 ID
 MODEL_ID = "Qwen/Qwen2-VL-7B-Instruct"
 
-# 5. 🌟 核心修改：强调客观、去主观化的 System Prompt
+# 5. System prompt 强调客观描述且不提供情感暗示。
 SYSTEM_PROMPT = """You are an expert Visual Content Analyst. 
 Task: Provide a highly accurate, objective description of the physical and visual elements in the provided movie frame. 
 Write a SINGLE, fluent natural language paragraph (< 50 words).
@@ -62,7 +62,7 @@ def main():
         os.makedirs(OUTPUT_ROOT)
 
     # 1. 加载全血版 Qwen2-VL (bfloat16)
-    print(f"🚀 正在加载全血版 Qwen2-VL (bfloat16)...")
+    print("正在加载 Qwen2-VL (bfloat16)...")
     try:
         model = Qwen2VLForConditionalGeneration.from_pretrained(
             MODEL_ID,
@@ -77,9 +77,9 @@ def main():
             max_pixels=1024 * 28 * 28,  # 限制像素防止 OOM
             cache_dir=CACHE_DIR
         )
-        print("✅ 模型加载成功！")
+        print("模型加载成功。")
     except Exception as e:
-        print(f"❌ 模型加载失败: {e}")
+        print(f"模型加载失败: {e}")
         return
 
     # 2. 遍历视频文件夹
@@ -100,7 +100,7 @@ def main():
         for frame_file in frame_files:
             image_abs_path = os.path.join(video_path, frame_file)
 
-            # 🌟 核心修改：去除了情感暗示，直接要求客观描述
+            # 不提供情感暗示，直接要求客观描述。
             user_prompt_text = (
                 "Describe the specific visual elements in this frame objectively. "
                 "Focus on the characters' physical state, the environment, and the lighting."
@@ -149,7 +149,7 @@ def main():
         with open(output_json_path, 'w', encoding='utf-8') as f:
             json.dump(results, f, ensure_ascii=False, indent=4)
 
-    print(f"✅ 客观图像描述提取完成！结果保存在: {OUTPUT_ROOT}")
+    print(f"客观图像描述提取完成。结果保存在: {OUTPUT_ROOT}")
 
 
 if __name__ == "__main__":

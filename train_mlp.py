@@ -23,8 +23,7 @@ log = logging.getLogger(__name__)
 
 
 # ==========================================
-# ✅ 3. 新增 MetricsCallback 类
-#    作用：在训练进度条中实时显示 F1 和 Kappa
+# Metrics callback for displaying F1 and kappa during training.
 # ==========================================
 class MetricsCallback(Callback):
     def __init__(self, out_dim):
@@ -80,9 +79,9 @@ def train_mlp(cfg: DictConfig) -> None:
         target_folds = target_folds[:1]
     mode_str = f"{cls_mode}-Class {cfg.data.dataset_name}"
     log.info("=" * 60)
-    log.info(f"🚀 Current Task Mode: {mode_str}")
-    log.info(f"📂 Feature Path: {feature_dir}")
-    log.info(f"🎯 Target Folds: {target_folds}")
+    log.info(f"Current Task Mode: {mode_str}")
+    log.info(f"Feature Path: {feature_dir}")
+    log.info(f"Target Folds: {target_folds}")
     log.info("=" * 60)
 
     cfg.mlp.out_dim = cls_mode
@@ -93,7 +92,7 @@ def train_mlp(cfg: DictConfig) -> None:
 
     n_per = round(cfg.data.n_subs / n_folds) if n_folds > 0 else 1
 
-    # ✅ 4. 修改存储结构，记录 Acc, F1, Kappa
+    # Store accuracy, F1, kappa, and class-level results.
     final_metrics = {
         "acc": [],
         "f1": [],
@@ -126,10 +125,10 @@ def train_mlp(cfg: DictConfig) -> None:
 
         earlyStopping_callback = EarlyStopping(monitor=es_monitor, mode="max", patience=cfg.mlp.patience)
 
-        # ✅ 5. 实例化 Callback
+        # Instantiate the metrics callback.
         metrics_callback = MetricsCallback(out_dim=cls_mode)
 
-        log.info(f"\n🚀 Training Fold: {fold}")
+        log.info(f"\nTraining Fold: {fold}")
 
         # 数据划分
         if n_folds == 1:
@@ -151,22 +150,22 @@ def train_mlp(cfg: DictConfig) -> None:
             found_files.extend(glob.glob(pattern))
 
         if not found_files:
-            log.error(f"❌ Feature file NOT found for fold {fold}")
+            log.error(f"Feature file not found for fold {fold}")
             continue
 
         save_path = found_files[0]
         try:
             data2 = np.load(save_path)
-            log.info(f'✅ Feature loaded: {os.path.basename(save_path)}')
+            log.info(f'Feature loaded: {os.path.basename(save_path)}')
         except Exception as e:
             log.error(f"Failed to load feature: {e}")
             continue
 
         # ==========================================
-        # 🚨 基础数据清洗 (NaN / Inf 处理)
+        # Replace non-finite feature values before normalization.
         # ==========================================
         if np.isnan(data2).any() or np.isinf(data2).any():
-            log.warning(f"⚠️ Fold {fold}: Data contains NaN or Inf. Cleaning...")
+            log.warning(f"Fold {fold}: data contains NaN or Inf; replacing non-finite values")
             # 遇到 inf 时，为了配合后续更宽松的 Pre-clip，这里也放宽替换值为 10.0
             data2 = np.nan_to_num(data2, nan=0.0, posinf=1000.0, neginf=-1000.0)
 
@@ -187,7 +186,7 @@ def train_mlp(cfg: DictConfig) -> None:
         labels2_val = np.tile(onesub_label2, len(val_subs))
 
         # ==========================================
-        # 🚀 [核心修改] “双重保险”标准化逻辑
+        # Normalize features with numerical safeguards.
         # ==========================================
         train_data_flat = data2[train_subs].reshape(-1, fea_dim)
         val_data_flat = data2[val_subs].reshape(-1, fea_dim)
@@ -195,23 +194,23 @@ def train_mlp(cfg: DictConfig) -> None:
         log.info(f"   Standardizing features for Fold {fold}...")
 
 
-        # 🧠 标准化：此时 scaler 能够安全地学到正常数据的分布规律
+        # Fit the scaler after the initial clipping step.
         scaler = StandardScaler()
         train_data_flat = scaler.fit_transform(train_data_flat)
         if val_data_flat.shape[0] > 0:
             val_data_flat = scaler.transform(val_data_flat)
 
-        # 🚨 第二道保险 (Post-Clip)：掐灭除零爆炸
+        # Clip normalized values to avoid numerical instability.
         # 防止那些原本几乎全是 0 的死特征，因为除以极小标准差而放大到成百上千
         POST_CLIP_LIMIT = 3.0
         train_data_flat = np.clip(train_data_flat, -POST_CLIP_LIMIT, POST_CLIP_LIMIT)
         if val_data_flat.shape[0] > 0:
             val_data_flat = np.clip(val_data_flat, -POST_CLIP_LIMIT, POST_CLIP_LIMIT)
         log.info(
-            f"   ✂️ Post-clip applied at [{-POST_CLIP_LIMIT}, {POST_CLIP_LIMIT}] to prevent division-by-zero explosions.")
+            f"Post-clip applied at [{-POST_CLIP_LIMIT}, {POST_CLIP_LIMIT}] to prevent numerical instability.")
 
         # ==========================================
-        # 🚀 [可选] PCA 降维: 1024 → 64/128
+        # Optional PCA dimensionality reduction: 1024 -> 64/128.
         # ==========================================
         fea_dim_orig = fea_dim
         if cfg.mlp.get('use_pca', False):
@@ -223,7 +222,7 @@ def train_mlp(cfg: DictConfig) -> None:
                 val_data_flat = pca.transform(val_data_flat)
             fea_dim = pca_dim
             explained = pca.explained_variance_ratio_.sum()
-            log.info(f"   📐 PCA: {fea_dim_orig} → {pca_dim}, explained variance: {explained:.4f} ({explained*100:.1f}%)")
+            log.info(f"PCA: {fea_dim_orig} -> {pca_dim}, explained variance: {explained:.4f} ({explained*100:.1f}%)")
         # ==========================================
 
         log.info(f"   Train Samples: {train_data_flat.shape[0]}, Val Samples: {val_data_flat.shape[0]}")
@@ -250,7 +249,7 @@ def train_mlp(cfg: DictConfig) -> None:
         limit_val_batches = 0.0 if n_folds == 1 else 1.0
 
         trainer = pl.Trainer(logger=False,
-                             # ✅ 6. 将 metrics_callback 加入 Trainer
+                             # Add the metrics callback to the Trainer.
                              callbacks=[checkpoint_callback, earlyStopping_callback, metrics_callback],
                              max_epochs=cfg.mlp.max_epochs,
                              min_epochs=cfg.mlp.min_epochs,
@@ -261,7 +260,7 @@ def train_mlp(cfg: DictConfig) -> None:
 
         trainer.fit(predictor, trainLoader, valLoader)
 
-        # ✅ 7. 训练结束后，重新加载最佳模型计算该折的最终指标
+        # Reload the best model to calculate final fold metrics.
         if cfg.train.valid_method != 1 and checkpoint_callback.best_model_path:
             best_model = MLPModel.load_from_checkpoint(
                 checkpoint_callback.best_model_path,
@@ -304,10 +303,10 @@ def train_mlp(cfg: DictConfig) -> None:
             final_metrics["all_targets_global"].extend(all_targets)
             # ---------------------------------------
 
-            log.info(f"✨ Fold {fold} Result: Acc={fold_acc * 100:.2f}%, F1={fold_f1:.4f}, Kappa={fold_kappa:.4f}")
+            log.info(f"Fold {fold} Result: Acc={fold_acc * 100:.2f}%, F1={fold_f1:.4f}, Kappa={fold_kappa:.4f}")
 
             # --- [新增] 在本折结束时打印情感准确率 ---
-            log.info(f"📊 Fold {fold} Per-Class Accuracy:")
+            log.info(f"Fold {fold} Per-Class Accuracy:")
             class_info = " | ".join([f"{emotion_list[i]}: {per_class[i] * 100:.1f}%" for i in range(cls_mode)])
             log.info(f"   {class_info}")
             # ----------------------------------------
@@ -315,10 +314,10 @@ def train_mlp(cfg: DictConfig) -> None:
         if cfg.train.iftest:
             break
 
-    # ✅ 8. 最终汇总输出
+    # Summarize metrics across folds.
     if cfg.train.valid_method != 1 and len(final_metrics["acc"]) > 0:
         log.info("\n" + "=" * 60)
-        log.info(f" 🏆 FINAL RESULTS (Mode: {cls_mode}-Class)")
+        log.info(f"FINAL RESULTS (Mode: {cls_mode}-Class)")
         log.info("=" * 60)
 
         header = f"{'Sub':<5} | {'Acc (%)':<10} | {'F1 Score':<10} | {'Kappa':<10}"
@@ -345,7 +344,7 @@ def train_mlp(cfg: DictConfig) -> None:
 
         # --- [新增] 全局类别总结和混淆矩阵输出 ---
         log.info("\n" + "=" * 60)
-        log.info("📈 Average Performance Per Emotion Class:")
+        log.info("Average Performance Per Emotion Class:")
         mean_per_class = np.mean(final_metrics["per_class_acc"], axis=0)
         std_per_class = np.std(final_metrics["per_class_acc"], axis=0)
 
@@ -355,7 +354,7 @@ def train_mlp(cfg: DictConfig) -> None:
         for i in range(cls_mode):
             log.info(f"{emotion_list[i]:<15} | {mean_per_class[i] * 100:<15.2f} | {std_per_class[i] * 100:<10.2f}")
 
-        log.info("\n🧱 Global Confusion Matrix (Aggregated All Folds):")
+        log.info("\nGlobal Confusion Matrix (Aggregated All Folds):")
         global_cm = confusion_matrix(final_metrics["all_targets_global"], final_metrics["all_preds_global"])
 
         top_line = "      " + "".join([f"[{i:^3}]" for i in range(cls_mode)])

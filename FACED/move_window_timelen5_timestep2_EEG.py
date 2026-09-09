@@ -65,7 +65,7 @@ def process_eeg(
     save_path = output_dir / save_name
     np.save(save_path, final_data)
 
-    print(f"✅ EEG 处理完成! 保存至: {save_path}")
+    print(f"EEG 处理完成。保存至: {save_path}")
     expected_rows = n_subs * n_vids * n_windows
     print(f"最终形状: {final_data.shape} (预期: {expected_rows}, {window_size}, {feat_dim})")
     return save_path

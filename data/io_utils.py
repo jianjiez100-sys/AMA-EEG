@@ -39,8 +39,8 @@ def load_processed_FACED_NEW_data(dir, fs, n_chans, timeLen, timeStep, n_session
     3. 执行 Z-score 标准化
     4. 执行滑动窗口切片
     """
-    print(f"🚀 [One-Step Load] Reading FACED .pkl from: {dir}")
-    print(f"📉 Resampling: 250 Hz -> {fs} Hz | Window: {timeLen}s")
+    print(f"[One-Step Load] Reading FACED .pkl from: {dir}")
+    print(f"Resampling: 250 Hz -> {fs} Hz | Window: {timeLen}s")
 
     list_files = os.listdir(dir)
     # 确保文件按 sub000, sub001... 排序，否则标签会乱
@@ -85,7 +85,7 @@ def load_processed_FACED_NEW_data(dir, fs, n_chans, timeLen, timeStep, n_session
                 # 原始 shape: (28, 32, 7500)
                 raw_user_data = pickle.load(f)
         except Exception as e:
-            print(f"❌ Error loading {fn}: {e}")
+            print(f"Error loading {fn}: {e}")
             continue
 
         # --- 2. 降采样 (核心步骤) ---
@@ -140,7 +140,7 @@ def load_processed_FACED_NEW_data(dir, fs, n_chans, timeLen, timeStep, n_session
     n_samples_onesub = np.array([n_samples] * n_vids_sel)
     n_samples_sessions = n_samples_onesub.reshape(n_session, -1)
 
-    print(f"✅ Data loaded successfully. Output Shape: {data.shape}")
+    print(f"Data loaded successfully. Output shape: {data.shape}")
     return data, np.array(onesub_labels), n_samples_onesub, n_samples_sessions
 
 

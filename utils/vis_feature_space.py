@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import os
 
 # ==================== 配置 ====================
-# 🔧 请修改为你的特征文件目录
+# 请修改为你的特征文件目录。
 # TEXT_DIR = "../features/text_timelen5_timestep2_1024_match_image"
 # TEXT_DIR = "../features/text_timelen5_timestep2_1024_objective"
 TEXT_DIR = "../features/text_timelen5_timestep2_1024_match_image_aligned"
@@ -43,15 +43,15 @@ for fname in sorted(os.listdir(TEXT_DIR)):
     if not fname.endswith(".npy"):
         continue
     prefix = "_".join(fname.split("_")[:2]) if fname.startswith("neg") or fname.startswith("pos") else fname.split("_")[0]
-    # 处理中立: neu → neu
+    # 处理中立: neu -> neu
     emotion = EMOTION_MAP.get(prefix, None)
     if emotion is None:
         continue
 
-    # 文本: (N, 5, 1024) → 取时间维平均 → (N, 1024)
+    # 文本: (N, 5, 1024) -> 取时间维平均 -> (N, 1024)
     t = np.load(os.path.join(TEXT_DIR, fname))
     if t.ndim == 3:
-        t = t.mean(axis=1)  # (N, 5, 1024) → (N, 1024)
+        t = t.mean(axis=1)  # (N, 5, 1024) -> (N, 1024)
 
     # 图像: (N, 1024)
     i = np.load(os.path.join(IMAGE_DIR, fname))

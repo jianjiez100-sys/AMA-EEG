@@ -1,3 +1,4 @@
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,9 +11,36 @@ from FACED.move_window_timelen5_timestep2_EEG import process_eeg
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SOURCE_SUFFIXES = {".m", ".py", ".yaml", ".yml"}
+DECORATIVE_SYMBOLS = re.compile(
+    "["
+    "\\u00D7"
+    "\\u2013\\u2014"
+    "\\U0001F000-\\U0001FAFF"
+    "\\u2190-\\u21FF"
+    "\\u2300-\\u23FF"
+    "\\u2500-\\u27BF"
+    "\\u2B00-\\u2BFF"
+    "\\uFE0E\\uFE0F"
+    "]"
+)
 
 
 class RepositoryTests(unittest.TestCase):
+    def test_source_files_do_not_contain_decorative_symbols(self):
+        excluded_dirs = {".git", "__pycache__"}
+        violations = []
+        for path in ROOT.rglob("*"):
+            if not path.is_file() or path.suffix not in SOURCE_SUFFIXES:
+                continue
+            if any(part in excluded_dirs for part in path.parts):
+                continue
+            lines = path.read_text(encoding="utf-8").splitlines()
+            for line_number, line in enumerate(lines, start=1):
+                if DECORATIVE_SYMBOLS.search(line):
+                    violations.append(f"{path.relative_to(ROOT)}:{line_number}")
+        self.assertEqual(violations, [], "Decorative symbols found in source files")
+
     def test_dataset_configs_compose_with_relative_paths(self):
         with initialize_config_dir(config_dir=str(ROOT / "cfgs"), version_base="1.3"):
             for dataset, expected_classes in (("FACED", 9), ("FACED_def_c2", 2), ("SEED", 3)):

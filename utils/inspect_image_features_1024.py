@@ -1,6 +1,6 @@
 import numpy as np
 
-# 🔧 请修改为你要检查的 .npy 文件路径
+# 请修改为你要检查的 .npy 文件路径。
 file_path = r"./features/your_features.npy"
 
 try:

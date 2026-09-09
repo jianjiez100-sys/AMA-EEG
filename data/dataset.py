@@ -105,7 +105,8 @@ class FACED_Dataset_new(Dataset):
                 if v_feat.shape[0] != self.samples_per_vid:
                     # 如果不匹配，尝试截取或填充，这里先报个警
                     print(
-                        f"⚠️ Warning: Video {fname} (vid={vid}) feat len {v_feat.shape[0]} != EEG len {self.samples_per_vid}")
+                        f"Warning: video {fname} (vid={vid}) feature length "
+                        f"{v_feat.shape[0]} != EEG length {self.samples_per_vid}")
 
                 self.video_feats.append(torch.from_numpy(v_feat).float())
                 self.text_feats.append(torch.from_numpy(t_feat).float())

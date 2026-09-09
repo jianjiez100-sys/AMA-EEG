@@ -7,7 +7,7 @@ import copy
 
 
 def video_order_load(n_vids=28):
-    # 🔧 请修改为 After_remarks 目录路径（包含 sub000-sub122 子目录）
+    # 请修改为 After_remarks 目录路径（包含 sub000-sub122 子目录）。
     datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'After_remarks')
     filesPath = os.listdir(datapath)
     filesPath.sort()

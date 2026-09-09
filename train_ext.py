@@ -4,7 +4,7 @@ from omegaconf import DictConfig
 import torch
 import numpy as np
 import pytorch_lightning as pl
-# 👇 必须导入 Callback 基类
+# Import the callback base class.
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, Callback
 import logging
 import sys
@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 
 
 # =========================================================================
-# 👇 新增：自定义回调函数，用于打印 9 类情感权重
+# Custom callback for reporting class-level modality weights.
 # =========================================================================
 class EmotionWeightLogger(Callback):
     """
@@ -41,7 +41,7 @@ class EmotionWeightLogger(Callback):
 
         # 3. 打印表头
         print(f"\n{'=' * 60}")
-        print(f"📊 Fold {trainer.current_epoch} - 情感类别权重报告 (Class-Level Alpha)")
+        print(f"Fold {trainer.current_epoch} - 情感类别权重报告 (Class-Level Alpha)")
         print(f"{'-' * 60}")
         print(f"{'Emotion Class':<20} | {'Text Weight (Alpha)':<20} | {'Image Weight':<20}")
         print(f"{'-' * 60}")
@@ -71,8 +71,8 @@ class ValMetricsLogger(Callback):
             return
 
         epoch = trainer.current_epoch
-        print(f"\n{'─' * 55}")
-        print(f"📋 Epoch {epoch:>3} 验证指标:")
+        print(f"\n{'-' * 55}")
+        print(f"Epoch {epoch:>3} 验证指标:")
         # 每行放 3 个指标
         row = []
         for key in val_keys:
@@ -86,7 +86,7 @@ class ValMetricsLogger(Callback):
                 row = []
         if row:
             print(f"   {'  |  '.join(row)}")
-        print(f"{'─' * 55}")
+        print(f"{'-' * 55}")
 
 
 @hydra.main(config_path="cfgs", config_name="config", version_base="1.3")
@@ -102,9 +102,9 @@ def train_ext(cfg: DictConfig) -> None:
 
     # 完善映射字典
     mode_map = {
-        0: "📝 Text Mode (EEG + Text)",
-        1: "🖼️ Image Mode (EEG + Image)",
-        2: "🚀 Fusion Mode (Dynamic Fusion)",
+        0: "Text Mode (EEG + Text)",
+        1: "Image Mode (EEG + Image)",
+        2: "Fusion Mode (Dynamic Fusion)",
         3: "Static Mode"
     }
     current_mode_desc = mode_map.get(pretrain_mode, f"Unknown Mode ({pretrain_mode})")
@@ -130,10 +130,10 @@ def train_ext(cfg: DictConfig) -> None:
 
     # 打印运行状态
     print("\n" + "=" * 60)
-    print(f"🚀 [Launch Configuration]")
-    print(f"🔥 Pretrain Mode : {pretrain_mode} -> {current_mode_desc}")
-    print(f"📂 Project Root  : {original_cwd}")
-    print(f"📂 Hydra Log Dir : {os.getcwd()}")
+    print("[Launch Configuration]")
+    print(f"Pretrain Mode : {pretrain_mode} -> {current_mode_desc}")
+    print(f"Project Root  : {original_cwd}")
+    print(f"Hydra Log Dir : {os.getcwd()}")
     print("=" * 60 + "\n")
 
     # ================= [配置: 折数逻辑] =================
@@ -152,7 +152,7 @@ def train_ext(cfg: DictConfig) -> None:
     if cfg.train.iftest:
         fold_range = fold_range[:1]
 
-    print(f"👉 Running Folds: {list(fold_range)}")
+    print(f"Running Folds: {list(fold_range)}")
 
     data_dir = to_absolute_path(cfg.data.data_dir)
     text_feat_dir = to_absolute_path(cfg.data.text_feat_dir)
@@ -169,19 +169,19 @@ def train_ext(cfg: DictConfig) -> None:
         print(f"\n>>> Starting Fold: {fold} | Mode: {current_mode_desc} <<<")
 
         # ================= [Checkpoint 路径] =================
-        # 🔧 Checkpoint 保存目录，可修改为任意路径
+        # Checkpoint 保存目录，可修改为任意路径
         cp_dir = os.path.join(
             to_absolute_path(cfg.log.cp_dir), cfg.data.dataset_name, f"run{cfg.log.run}")
 
         if fold == fold_range[0]:
-            print(f"💾 Checkpoints will be saved to: {cp_dir}")
+            print(f"Checkpoints will be saved to: {cp_dir}")
 
         os.makedirs(cp_dir, exist_ok=True)
 
-        # 🎯 Proto_Acc: EEG 投影后与目标特征的检索准确率
+        # Proto_Acc: EEG 投影后与目标特征的检索准确率
         cp_monitor = "val/ZeroShot_Acc"
         es_monitor = "val/ZeroShot_Acc"
-        print(f"📊 [Monitor] Using val/ZeroShot_Acc")
+        print("[Monitor] Using val/ZeroShot_Acc")
 
         checkpoint_callback = ModelCheckpoint(
             monitor=cp_monitor,
@@ -199,7 +199,7 @@ def train_ext(cfg: DictConfig) -> None:
             verbose=True
         )
 
-        # 👇 [新增] 实例化自定义的权重打印回调
+        # 实例化自定义的权重打印回调
         weight_callback = EmotionWeightLogger()
         val_metrics_callback = ValMetricsLogger()
 
@@ -278,7 +278,7 @@ def train_ext(cfg: DictConfig) -> None:
             cfg.model.use_ln_backbone = True
         # 其余配置 (use_modal_proj, probe_on_raw 等)
         # 由 ExtractorModel 从 cfg.train 直接读取, 不经过 cfg.model
-        print(f"📐 proj_type=residual, probe_on_raw={cfg.train.get('probe_on_raw',False)}")
+        print(f"proj_type=residual, probe_on_raw={cfg.train.get('probe_on_raw', False)}")
 
         # ================= [初始化模型] =================
         base_model = hydra.utils.instantiate(cfg.model)
@@ -289,7 +289,7 @@ def train_ext(cfg: DictConfig) -> None:
         # ================= [Trainer 设置] =================
         trainer = pl.Trainer(
             logger=False,  # 关闭 TensorBoard 避免异步写盘崩溃
-            # 👇 [关键] 必须把 weight_callback 加到这里的列表中
+            # 将自定义日志回调加入 Trainer。
             callbacks=[checkpoint_callback, earlyStopping_callback, weight_callback, val_metrics_callback],
             max_epochs=cfg.train.max_epochs,
             min_epochs=cfg.train.min_epochs,
@@ -306,7 +306,7 @@ def train_ext(cfg: DictConfig) -> None:
         trainer.fit(Extractor, dm)
 
         if cfg.train.iftest:
-            print("🛑 Test mode enabled, stopping after first fold.")
+            print("Test mode enabled; stopping after first fold.")
             break
 
 

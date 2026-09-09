@@ -8,7 +8,7 @@ from sklearn.decomposition import PCA
 from transformers import CLIPModel, CLIPProcessor
 
 # ================= 配置区域 =================
-# 🔧 请修改为你的帧图像目录和输出路径
+# 请修改为你的帧图像目录和输出路径。
 INPUT_ROOT = r"./FACED_frames"
 OUTPUT_ROOT = r"./features/image_features_clip_vit_centercrop_timelen5_timestep2"
 MODEL_CACHE_DIR = r"./huggingface_cache"
@@ -55,7 +55,7 @@ def load_model():
 def extract_clip_vit_features_batch(model, processor, image_paths):
     """
     CLIP ViT 隐藏层编码:
-    center crop → CLIP preprocess → vision_model → mean pool patches → L2 norm
+    center crop -> CLIP preprocess -> vision_model -> mean pool patches -> L2 norm
     返回: (batch, hidden_dim) 其中 hidden_dim=1664 for ViT-g
     """
     images = []
@@ -80,7 +80,7 @@ def extract_clip_vit_features_batch(model, processor, image_paths):
     with torch.no_grad():
         vision_outputs = model.vision_model(**inputs)
         # last_hidden_state: (B, n_patches+1, 1664) including CLS token
-        # mean pool over all tokens → (B, 1664)
+        # mean pool over all tokens -> (B, 1664)
         hidden = vision_outputs.last_hidden_state
         feats = hidden.mean(dim=1)
         feats = feats / feats.norm(p=2, dim=-1, keepdim=True)
@@ -91,7 +91,7 @@ def extract_clip_vit_features_batch(model, processor, image_paths):
 def apply_sliding_window(sec_features):
     """
     输入: (30, D) 每秒一个特征
-    策略: 取 5 秒窗口的中间秒（第 3 秒）→ 输出 (13, D)
+    策略: 取 5 秒窗口的中间秒（第 3 秒）-> 输出 (13, D)
     """
     segments = []
     for start_idx in range(0, TARGET_SECONDS - WINDOW_SIZE + 1, STRIDE):
@@ -131,7 +131,7 @@ def process_single_video(model, processor, folder_path):
 
     all_frame_features = np.vstack(all_frame_features)
 
-    # 每秒 max pooling（3 帧 → 1）
+    # 每秒 max pooling（3 帧 -> 1）
     num_seconds = all_frame_features.shape[0] // FRAMES_PER_SECOND
     reshaped = all_frame_features[:num_seconds * FRAMES_PER_SECOND].reshape(
         num_seconds, FRAMES_PER_SECOND, -1)
@@ -191,7 +191,7 @@ def main():
 
     # ================= Phase 2: PCA 降维 =================
     print(f"\n{'='*60}")
-    print(f"Phase 2: Fitting PCA {clip_dim} → {TARGET_FEAT_DIM}")
+    print(f"Phase 2: Fitting PCA {clip_dim} -> {TARGET_FEAT_DIM}")
     print(f"{'='*60}")
 
     all_frames_stacked = np.vstack(all_frame_features_pca)

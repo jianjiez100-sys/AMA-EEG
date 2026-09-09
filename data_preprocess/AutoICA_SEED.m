@@ -134,13 +134,13 @@ for sub_id = 1:n_sub
             var_name = sprintf('%s_eeg%d', prefix, n);
             trial_data = file_data.(var_name);
             
-            % 转置数据（如果数据是时间×通道）
+            % 转置数据（如果数据是时间 x 通道）
             % trial_data = trial_data'; % 根据实际数据维度决定是否需要转置
             trial_data = trial_data(keep_mask, :);
             
             
             % 添加到数据结构
-            data.trial{end+1} = trial_data; % 假设数据是通道×时间
+            data.trial{end+1} = trial_data; % 假设数据是通道 x 时间
             n_samples = size(trial_data, 2);
             data.time{end+1} = (0:n_samples-1)/Fs;
         end

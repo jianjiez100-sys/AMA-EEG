@@ -3,7 +3,7 @@ import numpy as np
 
 # ================= 配置区域 =================
 # 输入: CLIP 提取好的视频特征 (.npy) - 注意里面包含子文件夹
-# 🔧 请修改为你的图像特征目录
+# 请修改为你的图像特征目录。
 INPUT_DIR = r"./features/image_features_1024_output"
 
 # 输出: 切片后的保存路径
@@ -13,7 +13,7 @@ OUTPUT_DIR = r"./features/photo_timelen5_timestep2_1024"
 CLIP_SECONDS = 30  # 统一截取最后 30 秒 (如果不足30秒则补零)
 WINDOW_SIZE = 5
 STRIDE = 2
-FEATURE_DIM = 1024  # 🚨 修正：将特征维度从 768 改为 1024
+FEATURE_DIM = 1024  # 特征维度与 CLIP 输出保持一致。
 
 # 视频顺序列表 (必须固定，确保与 EEG 对应)
 VIDEO_NAMES = [
@@ -33,10 +33,10 @@ def process_video_features():
     print(f"开始处理视频特征... 源路径: {INPUT_DIR}")
 
     for vid_name in VIDEO_NAMES:
-        # 🚨 关键修改 1：加上了 vid_name 作为中间的子文件夹路径
+        # 使用 vid_name 作为中间子目录。
         npy_path = os.path.join(INPUT_DIR, vid_name, f"{vid_name}_features.npy")
 
-        # 🚨 关键修改 2：使用 1024 维初始化全零矩阵
+        # 使用 1024 维全零矩阵初始化缺失特征。
         full_timeline = np.zeros((CLIP_SECONDS, FEATURE_DIM), dtype=np.float32)
 
         if os.path.exists(npy_path):
@@ -52,7 +52,7 @@ def process_video_features():
             else:
                 full_timeline[-t_len:] = feats
         else:
-            print(f"⚠️ Warning: Missing file {npy_path}, using zeros.")
+            print(f"Warning: missing file {npy_path}; using zeros.")
 
         # 2. 滑动窗口切片
         segments = []
@@ -69,9 +69,9 @@ def process_video_features():
         np.save(save_path, segments)
 
         # 打印一下进度
-        print(f"✅ 成功处理并保存: {vid_name} -> Shape: {segments.shape}")
+        print(f"成功处理并保存: {vid_name} -> Shape: {segments.shape}")
 
-    print("🎉 所有视频特征滑动切片预处理完成！")
+    print("所有视频特征滑动切片预处理完成。")
 
 
 if __name__ == "__main__":

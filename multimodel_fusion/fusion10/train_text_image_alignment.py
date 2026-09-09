@@ -1,8 +1,8 @@
 """
-Text ↔ Image 双向对比学习对齐 (双方各一个投影头)
+Text-to-image 双向对比学习对齐 (双方各一个投影头)
 =====================================================
-损失: 双向 InfoNCE (text→image + image→text)
-投影头: 1024→1024, ResidualAdd + LayerNorm (文本+图像各一个)
+损失: 双向 InfoNCE (text->image + image->text)
+投影头: 1024->1024, ResidualAdd + LayerNorm (文本+图像各一个)
 100% 数据用于训练, 无验证集.
 """
 
@@ -16,7 +16,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model.models import ResidualAdd
 
-# 🔧 请修改为你的特征文件路径
+# 请修改为你的特征文件路径。
 TEXT_DIR = "../../features/text_timelen5_timestep2_1024_objective"
 IMAGE_DIR = "../../features/image_features_clip_vit_centercrop_timelen5_timestep2"
 SAVE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -30,11 +30,11 @@ PATIENCE = 30
 TRAIN_RATIO = 1.0       # 100% 数据训练
 RANDOM_SEED = 7
 TEMPERATURE = 0.07
-SYMMETRIC = True         # 双向: text→image + image→text
+SYMMETRIC = True         # 双向: text->image + image->text
 
 
 class ResidualProjector(nn.Module):
-    """1024 → 1024, 残差连接 + LayerNorm (仅文本侧)"""
+    """1024 -> 1024, 残差连接 + LayerNorm (仅文本侧)"""
     def __init__(self, in_dim=1024, dropout=0.2):
         super().__init__()
         self.net = nn.Sequential(
@@ -51,7 +51,7 @@ class ResidualProjector(nn.Module):
 
 
 def info_nce_loss(text_proj, image_proj, temperature, symmetric=True):
-    """双向 InfoNCE: text→image + image→text"""
+    """双向 InfoNCE: text->image + image->text"""
     t = F.normalize(text_proj, dim=1)
     i = F.normalize(image_proj, dim=1)
     B = t.shape[0]
@@ -83,8 +83,8 @@ FILE_NAMES = [
 ] + [f"pos_j_{i}_features.npy" for i in range(1, 4)
 ] + [f"pos_t_{i}_features.npy" for i in range(1, 4)]
 
-print(f"📂 Text:  {TEXT_DIR}")
-print(f"📂 Image: {IMAGE_DIR}")
+print(f"Text features:  {TEXT_DIR}")
+print(f"Image features: {IMAGE_DIR}")
 
 text_list, image_list = [], []
 for fname in FILE_NAMES:
@@ -114,9 +114,9 @@ params = list(text_proj.parameters()) + list(image_proj.parameters())
 opt = torch.optim.Adam(params, lr=LR, weight_decay=WD)
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=MAX_EPOCHS)
 
-print(f"\n🔥 Text ↔ Image 双向对比学习对齐")
-print(f"   Text:  ResidualProjector (1024→1024, 2.1M)")
-print(f"   Image: ResidualProjector (1024→1024, 2.1M)")
+print("\nText-to-image bidirectional contrastive alignment")
+print("Text:  ResidualProjector (1024->1024, 2.1M)")
+print("Image: ResidualProjector (1024->1024, 2.1M)")
 print(f"   Loss:  双向 InfoNCE (τ={TEMPERATURE})")
 print(f"{'='*60}")
 
@@ -133,7 +133,7 @@ for epoch in range(MAX_EPOCHS):
     epoch_loss /= n_total; epoch_acc /= n_total; scheduler.step()
 
     improved = epoch_loss < best_loss
-    flag = " ★" if improved else ""
+    flag = " (best)" if improved else ""
     if improved:
         best_loss = epoch_loss; patience_cnt = 0
         os.makedirs(SAVE_DIR, exist_ok=True)
@@ -146,7 +146,7 @@ for epoch in range(MAX_EPOCHS):
     if patience_cnt >= PATIENCE: print(f"Early stopping at {epoch+1}"); break
 
 # 投影存盘
-print(f"\n📦 Projecting all features...")
+print("\nProjecting all features...")
 text_proj.load_state_dict(torch.load(os.path.join(SAVE_DIR, "projector_text.pt"), weights_only=True))
 image_proj.load_state_dict(torch.load(os.path.join(SAVE_DIR, "projector_image.pt"), weights_only=True))
 text_proj.eval(); image_proj.eval()
@@ -172,7 +172,7 @@ with torch.no_grad():
         np.save(os.path.join(pt_dir, fname), t_out)
         np.save(os.path.join(pi_dir, fname), i_out)
 
-print(f"→ {pt_dir}/  ({len(FILE_NAMES)} files) — 投影文本")
-print(f"→ {pi_dir}/  ({len(FILE_NAMES)} files) — 投影图像")
-print(f"→ {os.path.join(SAVE_DIR, 'projector_text.pt')}")
-print(f"→ {os.path.join(SAVE_DIR, 'projector_image.pt')}")
+print(f"Projected text: {pt_dir}/ ({len(FILE_NAMES)} files)")
+print(f"Projected image: {pi_dir}/ ({len(FILE_NAMES)} files)")
+print(f"Text projector: {os.path.join(SAVE_DIR, 'projector_text.pt')}")
+print(f"Image projector: {os.path.join(SAVE_DIR, 'projector_image.pt')}")

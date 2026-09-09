@@ -1,8 +1,8 @@
 """
-Text-Image 共享空间对齐 — 纯 InfoNCE + Residual 投影头 (SEED 版)
+Text-Image 共享空间对齐 - 纯 InfoNCE + Residual 投影头 (SEED 版)
 ==============================================================
 损失: 仅对称双向 InfoNCE (τ=0.07), 无其他辅助 loss
-投影头: 1024→1024, ResidualAdd + LayerNorm (与骨干网络一致)
+投影头: 1024->1024, ResidualAdd + LayerNorm (与骨干网络一致)
 全量训练, 不划分验证集
 
 数据集: SEED (3类: negative/neutral/positive, 15个视频)
@@ -34,7 +34,7 @@ SYMMETRIC = True
 
 
 class ResidualProjector(nn.Module):
-    """1024 → 1024, 残差连接 + LayerNorm"""
+    """1024 -> 1024, 残差连接 + LayerNorm"""
     def __init__(self, in_dim=1024, dropout=0.2):
         super().__init__()
         self.net = nn.Sequential(
@@ -85,8 +85,8 @@ for emotion, vids in SEED_EMOTION_DIRS.items():
     for vid in vids:
         FILE_NAMES.append((emotion, vid))
 
-print(f"📂 Text:  {TEXT_DIR}")
-print(f"📂 Image: {IMAGE_DIR}")
+print(f"Text features:  {TEXT_DIR}")
+print(f"Image features: {IMAGE_DIR}")
 
 text_list, image_list = [], []
 n_aligned = 0
@@ -98,7 +98,7 @@ for emotion, fname in FILE_NAMES:
     # 取最小长度对齐 (与 SEED 主数据集一致)
     min_len = min(len(t), len(i))
     if len(t) != len(i):
-        print(f"  ⚠️  Aligning {emotion}/{fname}: text={len(t)} vs image={len(i)} → {min_len}")
+        print(f"Aligning {emotion}/{fname}: text={len(t)} vs image={len(i)} -> {min_len}")
     text_list.append(t[:min_len].astype(np.float32))
     image_list.append(i[:min_len].astype(np.float32))
     n_aligned += min_len
@@ -119,7 +119,7 @@ image_proj = ResidualProjector().to(DEVICE)
 opt = torch.optim.Adam(list(text_proj.parameters()) + list(image_proj.parameters()), lr=LR, weight_decay=WD)
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=MAX_EPOCHS)
 
-print(f"\n🔥 ResidualProjector (1024→1024, ResidualAdd + LayerNorm)")
+print("\nResidualProjector (1024->1024, ResidualAdd + LayerNorm)")
 print(f"   Loss: 纯双向 InfoNCE (τ={TEMPERATURE})  全量训练 ({n_total} samples)")
 print(f"{'='*60}")
 
@@ -136,7 +136,7 @@ for epoch in range(MAX_EPOCHS):
     tr_loss /= n_total; tr_acc /= n_total; scheduler.step()
 
     improved = tr_loss < best_loss
-    flag = " ★" if improved else ""
+    flag = " (best)" if improved else ""
     if improved:
         best_loss = tr_loss; patience_cnt = 0
         os.makedirs(SAVE_DIR, exist_ok=True)
@@ -148,7 +148,7 @@ for epoch in range(MAX_EPOCHS):
     print(f"Epoch {epoch+1:3d}{flag}  Loss={tr_loss:.4f}  Acc={tr_acc:.4f}")
     if patience_cnt >= PATIENCE: print(f"Early stopping at {epoch+1}"); break
 
-print(f"\n📦 Projecting all features...")
+print("\nProjecting all features...")
 text_proj.load_state_dict(torch.load(os.path.join(SAVE_DIR, "projector_text.pt"), weights_only=True))
 image_proj.load_state_dict(torch.load(os.path.join(SAVE_DIR, "projector_image.pt"), weights_only=True))
 text_proj.eval(); image_proj.eval()
@@ -178,5 +178,5 @@ with torch.no_grad():
         os.makedirs(os.path.join(pi_dir, emotion), exist_ok=True)
         np.save(os.path.join(pi_dir, emotion, fname), out_i)
 
-print(f"→ {pt_dir}/  ({len(FILE_NAMES)} files, 3 emotion subdirs)")
-print(f"→ {pi_dir}/  ({len(FILE_NAMES)} files, 3 emotion subdirs)")
+print(f"Projected text: {pt_dir}/ ({len(FILE_NAMES)} files, 3 emotion subdirs)")
+print(f"Projected image: {pi_dir}/ ({len(FILE_NAMES)} files, 3 emotion subdirs)")

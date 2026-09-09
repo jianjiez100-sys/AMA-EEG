@@ -20,7 +20,7 @@ train:
   n_subs: ${data.n_subs}
 
 # ==========================================
-  # 👇 [关键修改 1] 预训练模式选择
+  # 预训练模式选择
   # ==========================================
   # 0: EEG + Text
   # 1: EEG + Image
@@ -30,7 +30,7 @@ train:
   # ==========================================
 
   # ==========================================
-  # 👇 [关键修改 2] 传入类别数
+  # 传入类别数
   # ==========================================
   # 线性探针 (Linear Probe) 需要知道分类层输出维度
   n_class: ${data.n_class}
@@ -83,13 +83,13 @@ mlp:
   gpus: ${train.gpus}
   num_workers: ${train.num_workers}
   # ==========================================
-  # 👇 PCA 降维 (作用于 StandardScaler 之后、MLP 之前)
+  # PCA 降维 (作用于 StandardScaler 之后、MLP 之前)
   # ==========================================
   use_pca: False         # True: 启用 PCA 降维
   pca_dim: 128            # 目标维度
-  # 💡 PCA 推荐配置:
-  #   use_pca=True  pca_dim=128  hidden_dim=[32]   → 128→32→out (2层MLP)
-  #   use_pca=True  pca_dim=64   hidden_dim=[]     → 64→out    (纯线性)
+  # PCA 推荐配置:
+  #   use_pca=True  pca_dim=128  hidden_dim=[32] -> 128->32->out (2层MLP)
+  #   use_pca=True  pca_dim=64   hidden_dim=[] -> 64->out (纯线性)
   # ==========================================
   batch_size: 256
 

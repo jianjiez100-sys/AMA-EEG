@@ -1,5 +1,5 @@
 dataset_name: 'FACED'
-# 🔧 请修改为你的 EEG 数据路径。FACED 数据集需从 Synapse 注册获取:
+# 请修改为你的 EEG 数据路径。FACED 数据集需从 Synapse 注册获取:
 #    https://www.synapse.org/Synapse:syn50614194/wiki/620378
 data_dir: './data/FACED'
 text_feat_dir: './features/text_timelen5_timestep2_1024_objective'

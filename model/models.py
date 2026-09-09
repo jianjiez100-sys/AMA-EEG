@@ -125,11 +125,11 @@ class Conv_att_simple_new(nn.Module):
         # 全局池化 (用于将 TimeConv2 输出的时序特征压缩为向量)
         self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
 
-        # 🔥 [关键修正] 更新投影头的输入维度
+        # 更新投影头的输入维度。
         # 原始维度 * multiFact * multiFact (因为经过了两层扩维)
         self.backbone_out_dim = n_msFilters_total * multiFact * multiFact
 
-        # 🔥 新增：定义预训练专用的非线性投影头
+        # 定义预训练专用的非线性投影头。
         # 维度变化：1024 -> 2048 -> 1024
         # 核心改造：引入非线性瓶颈层，防止 Projector 偷懒
         # self.projector = nn.Sequential(
@@ -166,7 +166,8 @@ class Conv_att_simple_new(nn.Module):
         self.projector = _make_projector()
 
         print(
-            f"⚡ [Model Init] Projector Input Dim calculated as: {self.backbone_out_dim} (Original: {n_msFilters_total} x {multiFact}^2)")
+            f"[Model Init] Projector input dimension: {self.backbone_out_dim} "
+            f"(original: {n_msFilters_total} x {multiFact}^2)")
 
     def forward(self, input, proj_mode='fusion'):
         # 0. 初始归一化 (可选)
@@ -221,7 +222,7 @@ class Conv_att_simple_new(nn.Module):
         out = self.backbone_dropout(out)
 
         # =========================================================
-        # 🔥 [关键逻辑] 统一处理流：预训练和分类都走这里
+        # 预训练和分类共用这一处理流程。
         # =========================================================
 
         # A. 池化
@@ -298,9 +299,9 @@ class simpleNN3(nn.Module):
         self.drop = nn.Dropout(p=dropout)
 
         # 动态构建隐藏层: 支持任意长度 hidden_dim
-        # hidden_dim=[]      → 纯线性分类 (inp_dim → out_dim)
-        # hidden_dim=[32]    → 2层 MLP (inp_dim → 32 → out_dim)
-        # hidden_dim=[128,64] → 3层 MLP (inp_dim → 128 → 64 → out_dim, 原默认)
+        # hidden_dim=[]: pure linear classification (inp_dim -> out_dim)
+        # hidden_dim=[32]: two-layer MLP (inp_dim -> 32 -> out_dim)
+        # hidden_dim=[128,64]: three-layer MLP (inp_dim -> 128 -> 64 -> out_dim)
         self.hidden_layers = nn.ModuleList()
         self.norm_layers = nn.ModuleList()  # BN 或 LN 统一存储
         prev_dim = inp_dim
