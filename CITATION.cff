@@ -1,12 +1,12 @@
 cff-version: 1.2.0
 message: >-
-  If you use AMA-EEG, please cite the accepted paper and this software.
-  The DOI will be added after publication.
+  If you use AMA-EEG, please cite the paper described below.
 title: AMA-EEG
 type: software
 authors:
   - family-names: Zhou
     given-names: Jianjie
+    email: SUAT25060448@stu.suat-sz.edu.cn
   - family-names: Cao
     given-names: Shilei
   - family-names: Xu
@@ -45,4 +45,8 @@ preferred-citation:
     - family-names: Zheng
       given-names: Qingqing
   journal: IEEE Transactions on Affective Computing
-  notes: Accepted for publication; DOI forthcoming.
+  year: 2026
+  start: 1
+  end: 10
+  doi: 10.1109/TAFFC.2026.3728157
+  url: https://ieeexplore.ieee.org/document/11668713

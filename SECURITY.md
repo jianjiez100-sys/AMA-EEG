@@ -4,10 +4,11 @@ Please do not open a public issue for leaked credentials, participant-level
 data, re-identification risks, or an exploitable vulnerability.
 
 Use GitHub's private vulnerability reporting feature when it is available. If
-it is unavailable, contact the corresponding author through the address given
-in the accepted paper and include only the minimum information needed to
-reproduce the problem. Do not send raw EEG, participant identifiers, API keys,
-or access tokens by ordinary issue comments.
+it is unavailable, contact Jianjie Zhou at
+[SUAT25060448@stu.suat-sz.edu.cn](mailto:SUAT25060448@stu.suat-sz.edu.cn) and
+include only the minimum information needed to reproduce the problem. Do not
+send raw EEG, participant identifiers, API keys, or access tokens by ordinary
+issue comments.
 
 When reporting, include:
 

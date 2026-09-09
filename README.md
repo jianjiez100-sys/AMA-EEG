@@ -9,13 +9,28 @@ for FACED and SEED with one shared model and dataset-specific configurations.
 **AMA-EEG: Adaptive Multimodal Alignment for Cross-Subject EEG Emotion Recognition**<br>
 Jianjie Zhou, Shilei Cao, Chengjian Xu, Zelin Liao, Haochuan Zhang, and Qingqing Zheng.
 
-Accepted for publication in *IEEE Transactions on Affective Computing*;
-the DOI and IEEE Xplore link are forthcoming. The accepted manuscript is not
-redistributed in this repository. After publication, this section and
-[`CITATION.cff`](CITATION.cff) will be updated with the version-of-record link.
+Published in *IEEE Transactions on Affective Computing*, 2026, pp. 1-10.
 
-If you use this repository before the final bibliographic record is available,
-please cite the accepted paper title above and the software metadata in
+- [IEEE Xplore](https://ieeexplore.ieee.org/document/11668713)
+- [DOI: 10.1109/TAFFC.2026.3728157](https://doi.org/10.1109/TAFFC.2026.3728157)
+
+If you use AMA-EEG in your research, please cite:
+
+```bibtex
+@ARTICLE{11668713,
+  author={Zhou, Jianjie and Cao, Shilei and Xu, Chengjian and Liao, Zelin and Zhang, Haochuan and Zheng, Qingqing},
+  journal={IEEE Transactions on Affective Computing},
+  title={AMA-EEG: Adaptive Multimodal Alignment for Cross-Subject EEG Emotion Recognition},
+  year={2026},
+  volume={},
+  number={},
+  pages={1-10},
+  keywords={Electroencephalography;Modeling;Emotion recognition;Visualization;Faces;Training;Seeds (agriculture);Learning (artificial intelligence);Videos;Affective computing;Contrastive learning;EEG;emotion recognition;multimodal fusion;semantic alignment},
+  doi={10.1109/TAFFC.2026.3728157}
+}
+```
+
+Machine-readable citation metadata are also available in
 [`CITATION.cff`](CITATION.cff).
 
 ## Supported tasks
@@ -214,7 +229,7 @@ running normalization or LDS smoothing used by older experiment scripts.
 
 ## Paper results and reproducibility
 
-The accepted paper reports the following fold-level mean and standard
+The paper reports the following fold-level mean and standard
 deviation. Accuracy, macro F1, and Cohen's kappa are reported in percent.
 
 | Task | Validation | Accuracy | F1 | Kappa |
@@ -232,7 +247,7 @@ learning rate `2e-4`, weight decay `2.2e-3`, batch size 256, dropout 0.2, and
 early-stopping patience 10.
 
 Qwen2-VL-7B-Instruct caption generation is a one-time offline preprocessing
-step. The accepted paper reports approximately 61 minutes for FACED and 75
+step. The paper reports approximately 61 minutes for FACED and 75
 minutes for SEED on one NVIDIA GeForce RTX 4090. End-to-end training time and
 memory use depend on the selected task and machine; record them together with
 the resolved Hydra configuration when reporting a new run.
@@ -279,3 +294,8 @@ see
 - Private security or sensitive-data reports: [`SECURITY.md`](SECURITY.md)
 - Code license: [`LICENSE`](LICENSE) (MIT)
 - Dataset and derived-file terms: [`DATA.md`](DATA.md)
+
+## Contact
+
+For questions about the paper or this repository, contact Jianjie Zhou at
+[SUAT25060448@stu.suat-sz.edu.cn](mailto:SUAT25060448@stu.suat-sz.edu.cn).
