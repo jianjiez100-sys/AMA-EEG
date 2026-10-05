@@ -7,6 +7,7 @@ train:
   patience: 5
   num_workers: 8
   sampler_times: 10
+  # SEED only: false uses subject pairs and LN; true uses random batches and BN.
   use_original_sampling: false
   conf_temp: 0.05
   probe_loss_weight: 1

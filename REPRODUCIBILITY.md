@@ -36,7 +36,7 @@ and run-specific output directories remain configurable.
 | Probe loss multiplier | 2 | 1 |
 | Negative mask | Same video, different subject | Same video/time content ID regardless of subject or session; diagonal remains positive |
 | Sampling | One sample per video per subject pair, 56 examples | Same-session subject pairs, 10 repeats, 30 examples; 2730 steps/epoch with 14 training subjects and three sessions |
-| Epoch max/min; stopping patience | 15/3; 3 in current source config | 25/10; 5 |
+| Epoch max/min; stopping patience | 15/5; 5 | 25/10; 5 |
 | Pretraining optimizer | Adam, lr 7e-4, weight decay 1.5e-4, cosine warm restarts, InfoNCE temperature 0.07 | Same |
 | Extraction input normalization | Training-subject channel statistics; sqrt(var + 1e-5) | Source fast path uses last-axis time-position statistics; sqrt(var) + 1e-5 |
 | Extracted representation | 1024-D backbone before the EEG projector; stratified normalization disabled; float32 inference | Same |
@@ -101,8 +101,9 @@ NumPy 2 when uncommenting running normalization.
   utility's 58-channel `data_all_cleaned` output is not the 62-channel per-trial
   input used by the default Python SEED experiment.
 - **Historical configs:** FACED archived run configs and the current editable
-  YAML have different stopping/temperature settings. This repair adopts the
-  current source config; reproducing a specific published run requires that
+  YAML have different stopping/temperature settings. Public FACED defaults now
+  use minimum epochs 5 and early-stopping patience 5; the retained reference
+  config uses 3 for both. Reproducing a specific published run requires that
   run's config, checkpoint, and complete fold outputs.
 
 Old caches produced by the previous SEED merged-MAT loader should be replaced

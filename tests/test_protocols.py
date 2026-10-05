@@ -119,7 +119,7 @@ class ProtocolTests(unittest.TestCase):
             faced = compose(config_name='config', overrides=['data=FACED'])
             seed = compose(config_name='config', overrides=['data=SEED'])
             binary = compose(config_name='config', overrides=['data=FACED_def_c2'])
-        self.assertEqual((faced.train.max_epochs, faced.train.min_epochs, faced.train.patience), (15, 3, 3))
+        self.assertEqual((faced.train.max_epochs, faced.train.min_epochs, faced.train.patience), (15, 5, 5))
         self.assertEqual((seed.train.max_epochs, seed.train.min_epochs, seed.train.patience), (25, 10, 5))
         self.assertEqual((faced.train.probe_loss_weight, seed.train.probe_loss_weight), (2, 1))
         self.assertEqual((faced.mlp.lr, seed.mlp.lr), (0.0002, 0.0005))

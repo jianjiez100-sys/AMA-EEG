@@ -263,13 +263,13 @@ deviation. Accuracy, macro F1, and Cohen's kappa are reported in percent.
 | SEED-3 | leave-one-subject-out | 69.45 ± 10.87 | 66.21 ± 13.84 | 54.19 ± 16.20 |
 
 These are historical paper results, not results re-established by the source
-parity repair. The current local source configurations differ between datasets:
+parity repair. The current public defaults differ between datasets:
 
 | Setting | FACED | SEED |
 | --- | --- | --- |
 | Seed; window/stride | 7; 5 s / 2 s | 7; 5 s / 2 s |
 | Pretraining optimizer; lr; weight decay | Adam; 7e-4; 1.5e-4 | Adam; 7e-4; 1.5e-4 |
-| Maximum/minimum epochs; patience | 15 / 3; 3 | 25 / 10; 5 |
+| Maximum/minimum epochs; patience | 15 / 5; 5 | 25 / 10; 5 |
 | Samples per subject pair/session | 1 | 10 |
 | Effective paired batch | 56 | 30 |
 | Probe loss weight; fusion temperature | 2; 0.1 | 1; 0.05 |

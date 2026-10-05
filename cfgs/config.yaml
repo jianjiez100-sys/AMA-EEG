@@ -44,12 +44,11 @@ train:
   loss_threshold: 1.0 # 文本相似度阈值: 相似度>此值的负样本被mask（跨受试者同一视频的文本向量）
   mask_mode: 'vid_sub'  # 假阴性掩码模式: vid_sub(基于视频+受试者ID) / threshold(文本相似度阈值) / none(不掩码)
   max_epochs: 15
-  min_epochs: 3
-  patience: 3
+  min_epochs: 5
+  patience: 5
   num_workers: 32
   restart_times: 1
   sampler_times: 1
-  use_original_sampling: false
   cross_session: false
   accelerator: 'gpu'
   precision: 'bf16-mixed'
