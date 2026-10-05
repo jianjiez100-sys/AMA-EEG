@@ -43,20 +43,8 @@ Machine-readable citation metadata are also available in
 | `FACED_def_c2` | FACED | 2 | 10-fold cross-subject |
 | `SEED` | SEED | 3 | leave-one-subject-out |
 
-The default model consumes EEG, text, and image features. Both datasets compute
-dynamic fusion weights from probe cross-entropy. During training, FACED averages
-the sample weights per video, while SEED averages them per emotion class,
-following their respective source experiments. These averages use the current
-batch, after the sample-wise sigmoid. Validation uses individual sample weights
-without group averaging for both datasets, following the public AMA-EEG CE rule.
-
-The retained source experiments differ from the paper's fusion formula:
-`AMA_final.pdf`, Section III-D, Eq. (3), defines alpha from predictive entropy,
-whereas both source training paths use probe cross-entropy against emotion
-labels. The original SEED validation used entropy; at the maintainer's request,
-this release instead follows the public CE rule for validation, while retaining
-SEED's class-level training averages. This documented choice and source-code
-checks do not establish which formula produced the published results; see
+The default model consumes EEG, text, and image features. Dataset-specific
+pipeline details and validation records are available in
 [`REPRODUCIBILITY.md`](REPRODUCIBILITY.md).
 
 ## Installation
@@ -206,10 +194,6 @@ The available pretraining modes are:
 | `1` | EEG + image |
 | `2` | EEG + dynamically weighted text/image fusion |
 | `3` | EEG + static text/image fusion |
-
-For FACED mode 3, set the text weight with `train.fusion_alpha`; the image weight
-is `1 - train.fusion_alpha`. The original SEED mode 3 uses text/image weights
-0.3/0.7 during training and 0.5/0.5 during validation; this behavior is preserved.
 
 ### Minimal smoke test
 

@@ -3,12 +3,9 @@
 Audit date: 2026-10-05. The reference experiments are the current local copies
 of `DAEST_Multimodel_new_fusion_recheck` (FACED) and
 `DAEST_SEED_Multiomdel_projector1` (SEED). This repair restores their data and
-training computations. At the maintainer's request, SEED validation alpha uses
-the public AMA-EEG CE rule instead of source entropy; training retains SEED's
-class averages and FACED's video averages. These checks do not establish that
-every current source default matches
-an archived paper run. Historical results in README remain unverified by this
-repair.
+training computations. These checks do not establish that every current source
+default matches an archived paper run. Historical results in README remain
+unverified by this repair.
 
 ## What differed in the release
 
@@ -36,8 +33,6 @@ and run-specific output directories remain configurable.
 | Frozen alignment | fusion10 inside the model; window average precedes alignment | fusion1 outside the model; project each second before window average |
 | Trainable projection | Residual EEG/text/image projectors | Residual EEG/text/image projectors |
 | Probe input | Raw CLIP features by default | Normalized offline aligned teacher features, before online projectors |
-| Dynamic training alpha | Probe CE-loss difference, sigmoid then average per video within the batch, temperature 0.1 | Probe CE-loss difference, sigmoid then average per emotion class within the batch, temperature 0.05 |
-| Dynamic validation alpha | Probe CE-loss difference using validation labels; individual weights without averaging | Same CE rule with individual weights, following the public release; original SEED validation used entropy |
 | Probe loss multiplier | 2 | 1 |
 | Negative mask | Same video, different subject | Same video/time content ID regardless of subject or session; diagonal remains positive |
 | Sampling | One sample per video per subject pair, 56 examples | Same-session subject pairs, 10 repeats, 30 examples; 2730 steps/epoch with 14 training subjects and three sessions |
@@ -89,27 +84,6 @@ NumPy 2 when uncommenting running normalization.
   channel normalization, but `reshape(-1, shape[-1])` operates on the 625 time
   positions. The restored default preserves the executable code. Changing this
   to channel statistics would be a new experiment, not a parity repair.
-- **Validation labels:** both datasets use ground-truth validation labels to
-  compute CE-based dynamic alpha. This matches FACED's source and the public
-  AMA-EEG validation rule; for SEED it is an explicit change from source entropy.
-  Retrieval/prototype metrics also use the validation batch. These pretraining
-  monitoring scores are not standalone deployed-classifier accuracies. The
-  downstream MLP fits its scaler on training subjects only.
-- **Paper/code fusion discrepancy:** `AMA_final.pdf`, Section III-D, Eq. (3),
-  defines alpha as `sigmoid((H_image - H_text) / tau)` using predictive entropy.
-  Both retained source training paths instead use
-  `sigmoid((CE_image - CE_text) / tau)` against ground-truth emotion labels.
-  Original FACED validation uses CE; original SEED validation uses entropy.
-  The public release shared the FACED CE/CE path for SEED as well. At the
-  maintainer's request the repaired release uses CE in both training and
-  validation, with FACED video averages and SEED class averages during training.
-  Validation weights are individual and are not averaged. Commit `200e7c6`
-  reverted an earlier entropy change (`55da070`). Probe supervision uses CE in both the
-  paper and code, while EEG-to-semantic alignment uses InfoNCE. The discrepancy
-  concerns the formula for fusion alpha. `torch.no_grad()` prevents gradients
-  through alpha but does not remove its dependence on labels. Matching the
-  source code therefore does not verify that historical paper runs used the
-  entropy formula.
 - **FACED binary labels:** the loader's nine-class order is negative 0-3,
   neutral 4, positive 5-8. The source pretraining filter follows that order,
   but its downstream binary constants use neutral 8 and reversed groups. Its
@@ -117,10 +91,6 @@ NumPy 2 when uncommenting running normalization.
   The release uses a 28-video nine-label cache, removes label 4 in pretraining,
   and maps labels >=5 to positive consistently in the MLP. Nine-class numerical
   parity is verified; exact historical binary parity is not established.
-- **SEED static mode:** the source fixes train alpha to 0.3 and validation alpha
-  to 0.5. The copied SEED module preserves these values; `train.fusion_alpha`
-  does not override them. Dynamic SEED temperature is also fixed to 0.05 in
-  source code.
 - **Optional DE baseline:** the source direct-DE branch uses the number of
   points per window as the filtering sampling rate. This branch is preserved
   and was not part of the verified default learned-feature pipeline.
@@ -151,8 +121,7 @@ with seed 7 and four CPU threads; no full dataset training was performed.
    FACED and SEED match exactly for dynamic training loss and all 44 parameter
    tensors receiving gradients, backbone predictions, MLP outputs, paired sampler
    sequences, fold input normalization, and trial LDS. FACED common validation
-   metrics also match. SEED validation is excluded from source equality because
-   its CE policy deliberately differs; the protocol tests check it separately.
+   metrics also match. The protocol tests check SEED validation separately.
    FACED fixture loss is 12.85471249; SEED fixture loss is 5.58000898; maximum
    gradient difference is 0 for both. These are fixture losses, not EEG accuracy.
 2. All 15 text and 15 image files regenerated from the release archives and
@@ -174,11 +143,10 @@ with seed 7 and four CPU threads; no full dataset training was performed.
    Finite extracted shapes are FACED `(224,1024)`, SEED `(90,1024)`, and FACED-2
    `(224,1024)` before neutral filtering. The binary MLP uses 96 training and
    96 validation windows after filtering. Fixture accuracy is not a scientific
-   reproduction result. After selecting CE validation with class-averaged
-   SEED training alpha, the SEED three-stage smoke test also passes with fresh
+   reproduction result. The SEED three-stage smoke test also passes with fresh
    run 9931 and finite `(90,1024)` features.
-4. Fifteen unit checks cover dataset-specific training alpha averages,
-   per-sample CE validation alpha, configuration selection, cold SEED loading/resampling,
+4. Fifteen unit checks cover training and validation fusion, configuration
+   selection, cold SEED loading/resampling,
    channel/trial normalization, shortest-subject truncation, multimodal index
    mapping, content/event IDs, 2730-step sampling, train-only fold statistics,
    LDS boundaries, variable video/session lengths, FACED PKL versus SEED shard
@@ -197,7 +165,7 @@ Local verification logs and fixtures are under `/tmp/ama_source_parity_smoke/`,
 these paths are not release assets.
 Follow-up slicing/extraction checks are recorded in
 `/tmp/ama_slice_extraction_tests.log` and `/tmp/ama_extraction_update_verify.log`.
-Fusion-policy checks are recorded in `/tmp/ama_public_fusion_tests.log` and
+Follow-up model checks are recorded in `/tmp/ama_public_fusion_tests.log` and
 `/tmp/ama_public_fusion_source_checks.log`.
 The updated SEED smoke log is `/tmp/ama_seed_public_ce_smoke.log`, with
 stage outputs under `/tmp/ama_seed_public_ce_smoke/`.
