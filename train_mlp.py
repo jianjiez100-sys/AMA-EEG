@@ -167,7 +167,8 @@ def train_mlp(cfg: DictConfig) -> None:
         if np.isnan(data2).any() or np.isinf(data2).any():
             log.warning(f"Fold {fold}: data contains NaN or Inf; replacing non-finite values")
             # 遇到 inf 时，为了配合后续更宽松的 Pre-clip，这里也放宽替换值为 10.0
-            data2 = np.nan_to_num(data2, nan=0.0, posinf=1000.0, neginf=-1000.0)
+            limit = 0.0 if cfg.data.dataset_name == 'SEED' else 1000.0
+            data2 = np.nan_to_num(data2, nan=0.0, posinf=limit, neginf=-limit)
 
         n_subs = cfg.data.n_subs
         fea_dim = data2.shape[-1]
@@ -180,6 +181,15 @@ def train_mlp(cfg: DictConfig) -> None:
         # 加载标签
         label_path = os.path.join(save_dir, 'onesub_label2.npy')
         onesub_label2 = np.load(label_path)
+        samples_per_sub = data2.shape[1]
+        if cfg.data.dataset_name == 'SEED':
+            # The source extraction saves labels for all subjects.
+            onesub_label2 = onesub_label2[:samples_per_sub].astype(int)
+        elif cls_mode == 2:
+            # FACED loader order: negative 0-3, neutral 4, positive 5-8.
+            keep = onesub_label2 != 4
+            data2 = data2[:, keep]
+            onesub_label2 = (onesub_label2[keep] >= 5).astype(int)
 
         # 准备数据分布
         labels2_train = np.tile(onesub_label2, len(train_subs))

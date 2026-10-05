@@ -46,7 +46,7 @@ class FACED_Dataset_new(Dataset):
             if not os.path.exists(self.sliced_data_dir + '/saved.npy'):
                 print('slicing processed dataset')
                 data, onesub_labels, n_samples_onesub, n_samples_sessions = self.load_processed_data(
-                    fs=fs, n_chans=n_chans, n_session=n_session, n_subs=n_subs, n_vids=n_vids, n_class=n_class)
+                    fs=fs, n_chans=n_chans, n_session=n_session, n_subs=n_subs, n_vids=n_vids, n_class=9)
                 self.save_sliced_data(data=data, onesub_labels=onesub_labels, n_samples_onesub=n_samples_onesub,
                                       n_samples_sessions=n_samples_sessions)
             else:
@@ -72,10 +72,12 @@ class FACED_Dataset_new(Dataset):
             f"pos_{emotion}_{i}_features.npy"
             for emotion in ('a', 'i', 'j', 't') for i in range(1, 4)
         ]
-        self.file_mapping = negative + positive if n_class == 2 else negative + neutral + positive
+        self.file_mapping = negative + neutral + positive
         if len(self.file_mapping) != self.n_vids:
             raise ValueError(
                 f"FACED feature mapping has {len(self.file_mapping)} videos, expected {self.n_vids}")
+        if len(n_samples_onesub_arr) != self.n_vids:
+            raise ValueError('FACED requires a 28-video cache with nine-class labels; use a fresh cache directory')
 
         # ================= 加载多模态特征 =================
         if sliced and image_feat_dir is not None and text_feat_dir is not None:
@@ -212,12 +214,13 @@ class SEED_Dataset_new(Dataset):
         self.n_samples_original = n_samples_all[:n_segments].astype(int)
         self.cumulative_original = np.concatenate(([0], np.cumsum(self.n_samples_original)))
         self.onesub_len_original = int(self.n_samples_original.sum())
-        if len(raw_labels) == self.onesub_len_original * n_subs:
-            raw_labels = raw_labels[:self.onesub_len_original]
-        elif len(raw_labels) != self.onesub_len_original:
+        if (len(raw_labels) != self.onesub_len_original * n_subs
+                or len(n_samples_all) != n_segments * n_subs):
             raise ValueError(
-                f"SEED labels have length {len(raw_labels)}, expected "
-                f"{self.onesub_len_original} or {self.onesub_len_original * n_subs}")
+                'SEED cache does not match the restored session/trial preprocessing. '
+                'Use a fresh cache directory with the official 200 Hz session files; '
+                'the previous merged-MAT cache cannot be reused.')
+        raw_labels = raw_labels[:self.onesub_len_original]
 
         has_image = image_feat_dir is not None
         has_text = text_feat_dir is not None
@@ -280,7 +283,8 @@ class SEED_Dataset_new(Dataset):
         text = self.text_features[video_id][offset_in_segment]
         image = self.image_features[video_id][offset_in_segment]
         content_id = int(video_id) * 1000 + int(offset_in_segment)
-        return eeg, label, text, image, content_id, int(subject_id)
+        event_id = int(subject_id) * 100000 + content_id
+        return eeg, label, text, image, event_id, content_id
 # ==========================================
 # 其他类保持不变 (SEEDV, FACED_Dataset 旧版等)
 # ==========================================

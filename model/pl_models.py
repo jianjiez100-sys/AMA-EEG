@@ -226,6 +226,16 @@ class ExtractorModel(pl.LightningModule):
         img_feat = img_feat.float()
         labels = labels.long()
 
+        # Preserve FACED sampling of all 28 videos before binary filtering.
+        if self.n_class == 2:
+            not_neutral = labels != 4
+            eeg, txt_feat, img_feat = eeg[not_neutral], txt_feat[not_neutral], img_feat[not_neutral]
+            labels = (labels[not_neutral] >= 5).long()
+            if vid_ids is not None:
+                vid_ids = vid_ids[not_neutral]
+            if sub_ids is not None:
+                sub_ids = sub_ids[not_neutral]
+
         # 如果特征维度是 (Batch, Seq, Dim)，取平均变为 (Batch, Dim)
         if txt_feat.ndim == 3: txt_feat = txt_feat.mean(dim=1)
         if img_feat.ndim == 3: img_feat = img_feat.mean(dim=1)
@@ -369,8 +379,18 @@ class ExtractorModel(pl.LightningModule):
         eeg = eeg.float()
         txt_feat = txt_feat.float()
         img_feat = img_feat.float()
-        # 这里的 labels 仅仅是为了算 Probe Loss 评估用的，绝对不进对齐 Loss
+        # FACED source uses validation labels for probe CE and dynamic alpha.
+        # InfoNCE does not take emotion labels, but its dynamic target depends on them.
         labels = labels.long()
+
+        if self.n_class == 2:
+            not_neutral = labels != 4
+            eeg, txt_feat, img_feat = eeg[not_neutral], txt_feat[not_neutral], img_feat[not_neutral]
+            labels = (labels[not_neutral] >= 5).long()
+            if vid_ids is not None:
+                vid_ids = vid_ids[not_neutral]
+            if sub_ids is not None:
+                sub_ids = sub_ids[not_neutral]
 
         if txt_feat.ndim == 3: txt_feat = txt_feat.mean(dim=1)
         txt_feat = F.normalize(txt_feat, dim=1)

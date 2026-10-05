@@ -2,7 +2,9 @@
 
 AMA-EEG aligns EEG representations with text and image semantics for
 cross-subject emotion recognition. This repository supports the experiments
-for FACED and SEED with one shared model and dataset-specific configurations.
+for FACED and SEED with a shared EEG backbone and separate pretraining protocols.
+The source-code audit, restored defaults, and verification limits are recorded
+in [`REPRODUCIBILITY.md`](REPRODUCIBILITY.md).
 
 ## Paper and citation
 
@@ -41,9 +43,21 @@ Machine-readable citation metadata are also available in
 | `FACED_def_c2` | FACED | 2 | 10-fold cross-subject |
 | `SEED` | SEED | 3 | leave-one-subject-out |
 
-The default model consumes three modalities: EEG, text features, and image
-features. In dynamic fusion mode, class probes estimate the confidence of the
-text and image modalities and use it to update their fusion weights.
+The default model consumes EEG, text, and image features. Both datasets compute
+dynamic fusion weights from probe cross-entropy. During training, FACED averages
+the sample weights per video, while SEED averages them per emotion class,
+following their respective source experiments. These averages use the current
+batch, after the sample-wise sigmoid. Validation uses individual sample weights
+without group averaging for both datasets, following the public AMA-EEG CE rule.
+
+The retained source experiments differ from the paper's fusion formula:
+`AMA_final.pdf`, Section III-D, Eq. (3), defines alpha from predictive entropy,
+whereas both source training paths use probe cross-entropy against emotion
+labels. The original SEED validation used entropy; at the maintainer's request,
+this release instead follows the public CE rule for validation, while retaining
+SEED's class-level training averages. This documented choice and source-code
+checks do not establish which formula produced the published results; see
+[`REPRODUCIBILITY.md`](REPRODUCIBILITY.md).
 
 ## Installation
 
@@ -92,8 +106,11 @@ release-asset checksums, and the status of repository-hosted derived files.
 
 ```text
 data/
-├── FACED/
-└── SEED/
+├── FACED/                 # sub000.pkl, ..., sub122.pkl; 28 x 32 x 7500 at 250 Hz
+└── SEED/                  # Official 200 Hz per-trial MAT files
+    ├── 1/                # 15 subject files with *_eeg1, ..., *_eeg15
+    ├── 2/
+    └── 3/
 ```
 
 The default paths can be overridden without editing YAML, for example:
@@ -144,16 +161,24 @@ features/SEED/
     └── positive/
 ```
 
-The SEED configuration uses the paper's `fusion1` text/image alignment weights
-from `multimodel_fusion/seed_fusion1/`. The model loads and freezes these
-weights, then trains its online residual projectors. Only `fusion1` is included;
-the unused fusion2/fusion3/fusion4 experiments and precomputed
-`projected_text/` or `projected_image/` arrays are not part of the code release.
+Generate the offline projected arrays with the released `fusion1` weights:
+
+```bash
+python project_seed_features.py data=SEED
+```
+
+This applies the frozen alignment projector to each one-second feature before
+the five-second average, preserving the source experiment. It saves
+`multimodel_fusion/seed_fusion1/projected_text/` and `projected_image/`, which
+SEED pretraining reads before applying its trainable residual projectors.
+The command uses existing weights and does not retrain the alignment model.
+FACED instead keeps its frozen `fusion10` alignment stage inside the model.
 
 ## Dynamic three-modal pretraining
 
 Set a distinct `log.run` for each repeated experiment. Checkpoints are written
-to `daest_cp/<dataset>/run<id>/`.
+to `daest_cp/<dataset>/run<id>/`. FACED-9 and FACED-2 share the dataset name,
+so give those tasks different run IDs as well.
 
 FACED 9-class dynamic fusion:
 
@@ -164,7 +189,7 @@ python train_ext.py data=FACED train.pretrain_mode=2 log.run=1
 FACED binary dynamic fusion:
 
 ```bash
-python train_ext.py data=FACED_def_c2 train.pretrain_mode=2 log.run=1
+python train_ext.py data=FACED_def_c2 train.pretrain_mode=2 log.run=2
 ```
 
 SEED 3-class dynamic fusion:
@@ -182,13 +207,14 @@ The available pretraining modes are:
 | `2` | EEG + dynamically weighted text/image fusion |
 | `3` | EEG + static text/image fusion |
 
-For mode 3, set the text weight with `train.fusion_alpha`; the image weight is
-`1 - train.fusion_alpha`.
+For FACED mode 3, set the text weight with `train.fusion_alpha`; the image weight
+is `1 - train.fusion_alpha`. The original SEED mode 3 uses text/image weights
+0.3/0.7 during training and 0.5/0.5 during validation; this behavior is preserved.
 
 ### Minimal smoke test
 
 This command runs one SEED fold for one epoch with one training batch and one
-validation batch. It verifies data loading, fusion1 loading, forward/backward,
+validation batch. After generating SEED's projected features, it verifies data loading, forward/backward,
 dynamic weights, and checkpoint writing:
 
 ```bash
@@ -218,8 +244,8 @@ python train_mlp.py data=FACED log.run=1
 Equivalent binary and SEED pipelines are:
 
 ```bash
-python extract_features.py data=FACED_def_c2 log.run=1
-python train_mlp.py data=FACED_def_c2 log.run=1
+python extract_features.py data=FACED_def_c2 log.run=2
+python train_mlp.py data=FACED_def_c2 log.run=2
 
 python extract_features.py data=SEED log.run=1
 python train_mlp.py data=SEED log.run=1
@@ -228,8 +254,18 @@ python train_mlp.py data=SEED log.run=1
 Extracted EEG features are saved under
 `extracted_features/<dataset>/run<id>/`. They are derived intermediate results,
 so users can regenerate them from the released code and their checkpoints.
-`extract_features.py` exports raw backbone features; it does not apply the
-running normalization or LDS smoothing used by older experiment scripts.
+`extract_features.py` fits input normalization on training subjects, extracts
+1024-dimensional backbone features in float32, and applies LDS independently
+within each subject/trial. Both original extraction scripts disable running
+normalization. Its full code block is retained, commented out, immediately before
+LDS in `extract_features.py`: FACED reorders videos to playback order and restores
+the standard order afterward; SEED handles sessions using variable trial counts.
+Input `normTrain` is separate from this disabled feature step. FACED extraction
+reads subject PKL files; SEED prefers per-subject NPY shards and otherwise reads
+the packed cache or session MAT files. FACED tiles one-subject labels, while SEED
+keeps full packed labels when provided. SEED's original fast normalization operates along time positions;
+see the audit for this source-code caveat. The MLP fits StandardScaler on
+training features and clips transformed values to [-3, 3].
 
 ## Paper results and reproducibility
 
@@ -242,13 +278,26 @@ deviation. Accuracy, macro F1, and Cohen's kappa are reported in percent.
 | FACED-9 | 10-fold cross-subject | 61.30 ± 6.79 | 61.42 ± 6.86 | 56.38 ± 7.67 |
 | SEED-3 | leave-one-subject-out | 69.45 ± 10.87 | 66.21 ± 13.84 | 54.19 ± 16.20 |
 
-The paper configuration uses seed 7, 5-second windows with a 2-second stride,
-a maximum of 15 alignment epochs, AdamW with learning rate `7e-4` and weight
-decay `1.5e-4`, and early stopping with patience 5. The paired-subject sampler
-produces effective batches of 56 for FACED (2 × 28 videos) and 30 for SEED
-(2 × 15 videos). The downstream MLP uses a maximum of 30 epochs, Adam with
-learning rate `2e-4`, weight decay `2.2e-3`, batch size 256, dropout 0.2, and
-early-stopping patience 10.
+These are historical paper results, not results re-established by the source
+parity repair. The current local source configurations differ between datasets:
+
+| Setting | FACED | SEED |
+| --- | --- | --- |
+| Seed; window/stride | 7; 5 s / 2 s | 7; 5 s / 2 s |
+| Pretraining optimizer; lr; weight decay | Adam; 7e-4; 1.5e-4 | Adam; 7e-4; 1.5e-4 |
+| Maximum/minimum epochs; patience | 15 / 3; 3 | 25 / 10; 5 |
+| Samples per subject pair/session | 1 | 10 |
+| Effective paired batch | 56 | 30 |
+| Probe loss weight; fusion temperature | 2; 0.1 | 1; 0.05 |
+| MLP lr; maximum epochs | 2e-4; 30 | 5e-4; 20 |
+
+Both MLPs use Adam, weight decay `2.2e-3`, batch size 256, hidden dimensions
+[512, 128], dropout 0.2, and patience 10. FACED binary pretraining samples all
+28 videos and removes the neutral class before forward propagation; the effective
+batch becomes 48. Its downstream labels follow the loader's actual order:
+negative 0-3, neutral 4, positive 5-8. The source binary scripts contain conflicting
+label constants, so the historical binary result still requires independent
+verification. See [`REPRODUCIBILITY.md`](REPRODUCIBILITY.md).
 
 Qwen2-VL-7B-Instruct caption generation is a one-time offline preprocessing
 step. The paper reports approximately 61 minutes for FACED and 75
@@ -266,7 +315,8 @@ train_ext.py -> extract_features.py -> train_mlp.py -> fold mean ± standard dev
 ## Configuration
 
 The main settings are in `cfgs/config.yaml`; dataset paths and class definitions
-are in `cfgs/data/`. Any setting can be overridden from the command line:
+are in `cfgs/data/`. `cfgs/protocol/` selects each source experiment's training
+defaults automatically with `data`. Any setting can be overridden from the command line:
 
 ```bash
 python train_ext.py \
@@ -282,14 +332,21 @@ configuration without starting training.
 
 ## Preprocessing
 
+The current FACED and SEED Python pretraining paths do not call MATLAB or
+perform bad-channel interpolation. FACED reads the processed `.pkl` input;
+SEED reads 62-channel, 200 Hz per-trial `.mat` files using `scipy.io.loadmat`,
+resamples to 125 Hz, normalizes, and slices in Python. Existing compatible
+slice caches are loaded directly. Reading a `.mat` file does not require MATLAB.
+
 `data_preprocess/AutoICA_SEED.m` and
-`data_preprocess/nt_find_bad_channels_custom.m` provide MATLAB preprocessing
-utilities for SEED. `AutoICA_SEED.m` requires
-[FieldTrip](https://www.fieldtriptoolbox.org/), EEGLAB with ICLabel, the
-NoiseTools bad-channel utilities, a channel-location file, and a coordinate
-matrix. Call the function with explicit paths as documented in its header; it
-does not use machine-specific paths. For an additional preprocessing reference,
-see
+`data_preprocess/nt_find_bad_channels_custom.m` were carried over from external
+preprocessing code and are retained as reference utilities. They are not
+prerequisites for the current Python experiment. Only running `AutoICA_SEED.m`
+separately requires FieldTrip, EEGLAB with ICLabel, NoiseTools, the custom
+interpolation helper, and channel-name/location/coordinate files; see
+[`data_preprocess/README.md`](data_preprocess/README.md). This standalone utility
+outputs 58 channels and a different MAT structure, which is not the input to the
+default SEED loader. For an additional preprocessing reference, see
 [EEG_Preprocess_python_new](https://github.com/soul-M-42/EEG_Preprocess_python_new).
 
 ## Contributing, security, and license

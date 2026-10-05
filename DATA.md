@@ -48,6 +48,9 @@ The `fusion10/projected_text/` and `fusion10/projected_image/` arrays are
 stimulus-derived analysis artifacts used to inspect the learned alignment;
 they are not raw or participant-level EEG and are not required for training.
 See the README in each alignment directory for provenance and checksums.
+SEED uses offline `seed_fusion1/projected_text/` and `projected_image/` arrays,
+generated locally with `python project_seed_features.py data=SEED` before
+pretraining. Those arrays are required inputs for the restored SEED protocol.
 
 ## Participant-level behavioral files
 

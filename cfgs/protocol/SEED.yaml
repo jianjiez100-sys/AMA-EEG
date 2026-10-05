@@ -1,0 +1,20 @@
+# @package _global_
+# DAEST_SEED_Multiomdel_projector1/cfgs/config.yaml (current source).
+train:
+  matmul_precision: 'high'
+  max_epochs: 25
+  min_epochs: 10
+  patience: 5
+  num_workers: 8
+  sampler_times: 10
+  use_original_sampling: false
+  conf_temp: 0.05
+  probe_loss_weight: 1
+  use_two_stage_projector: false
+  probe_on_raw: false
+  fusion_alpha: 0.3
+mlp:
+  lr: 0.0005
+  max_epochs: 20
+ext_fea:
+  matmul_precision: 'medium'

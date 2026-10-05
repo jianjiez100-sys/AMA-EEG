@@ -11,8 +11,18 @@ To retrain the alignment weights, update the feature paths near the top of
 python multimodel_fusion/seed_fusion1/train_text_image_alignment.py
 ```
 
-The generated projected feature arrays are intermediate artifacts and are not
-required by AMA-EEG. Keep using raw features with the saved projector weights.
+SEED pretraining requires the generated projected arrays. After extracting the
+released raw feature archives under `features/SEED/`, generate these arrays with
+the existing weights from the repository root:
+
+```bash
+python project_seed_features.py data=SEED
+```
+
+This projects each one-second vector before window averaging, as in the original
+SEED experiment. The generated `projected_text/` and `projected_image/`
+directories are ignored by Git. Retraining the alignment weights is optional
+and is not needed for reproducing this preprocessing stage.
 
 Projector checksums:
 

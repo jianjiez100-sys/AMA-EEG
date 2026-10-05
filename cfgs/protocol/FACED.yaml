@@ -1,0 +1,12 @@
+# @package _global_
+# DAEST_Multimodel_new_fusion_recheck/cfgs/config.yaml (current source).
+train:
+  max_epochs: 15
+  min_epochs: 3
+  patience: 3
+  sampler_times: 1
+  conf_temp: 0.1
+  probe_loss_weight: 2
+mlp:
+  lr: 0.0002
+  max_epochs: 30

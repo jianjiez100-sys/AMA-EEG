@@ -13,10 +13,7 @@ from hydra.utils import get_original_cwd, to_absolute_path
 
 # Import DataModule and LightningModule
 from data.pl_datamodule import EEGDataModule, FACEDDataModule, SEEDDataModule
-from model.pl_models import ExtractorModel
-
-# Set matrix multiplication precision
-torch.set_float32_matmul_precision('medium')
+from model import get_extractor_class
 
 log = logging.getLogger(__name__)
 
@@ -91,6 +88,7 @@ class ValMetricsLogger(Callback):
 
 @hydra.main(config_path="cfgs", config_name="config", version_base="1.3")
 def train_ext(cfg: DictConfig) -> None:
+    torch.set_float32_matmul_precision(cfg.train.matmul_precision)
     # 1. 设置随机种子
     pl.seed_everything(cfg.seed)
     torch.backends.cudnn.deterministic = True
@@ -99,6 +97,7 @@ def train_ext(cfg: DictConfig) -> None:
     # ================= [配置: 获取预训练模式] =================
     # 0: Text, 1: Image, 2: Auto-Fusion
     pretrain_mode = cfg.train.get('pretrain_mode', 0)
+    ExtractorModel = get_extractor_class(cfg.data.dataset_name)
 
     # 完善映射字典
     mode_map = {
@@ -267,6 +266,7 @@ def train_ext(cfg: DictConfig) -> None:
                 text_feat_dir=text_feat_dir,
                 sampler_times=cfg.train.sampler_times,
                 cross_session=cfg.train.cross_session,
+                use_original_sampling=cfg.train.use_original_sampling,
             )
         else:
             dm = EEGDataModule(cfg.data, train_subs, val_subs, train_vids, val_vids,
@@ -275,7 +275,8 @@ def train_ext(cfg: DictConfig) -> None:
         # ================= [同步 backbone 配置] =================
         with od(cfg.model):
             cfg.model.proj_type = 'residual'
-            cfg.model.use_ln_backbone = True
+            cfg.model.use_ln_backbone = (
+                not cfg.train.use_original_sampling if cfg.data.dataset_name == 'SEED' else True)
         # 其余配置 (use_modal_proj, probe_on_raw 等)
         # 由 ExtractorModel 从 cfg.train 直接读取, 不经过 cfg.model
         print(f"proj_type=residual, probe_on_raw={cfg.train.get('probe_on_raw', False)}")

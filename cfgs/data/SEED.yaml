@@ -1,8 +1,10 @@
 dataset_name: 'SEED'
 data_dir: './data/SEED'
-text_feat_dir: './features/SEED/text_timelen5_timestep2_1024'
-image_feat_dir: './features/SEED/image_features_clip_vit_centercrop_timelen5_timestep2'
-use_two_stage_projector: true
+text_feat_dir: './multimodel_fusion/seed_fusion1/projected_text'
+image_feat_dir: './multimodel_fusion/seed_fusion1/projected_image'
+raw_text_feat_dir: './features/SEED/text_timelen5_timestep2_1024'
+raw_image_feat_dir: './features/SEED/image_features_clip_vit_centercrop_timelen5_timestep2'
+use_two_stage_projector: false
 pretrained_text_proj: './multimodel_fusion/seed_fusion1/projector_text.pt'
 pretrained_image_proj: './multimodel_fusion/seed_fusion1/projector_image.pt'
 fs: 125

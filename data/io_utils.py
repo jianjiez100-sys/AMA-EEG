@@ -267,56 +267,182 @@ def load_processed_SEEDV_NEW_data(dir, fs, n_chans, timeLen, timeStep, n_session
         onesub_labels = onesub_labels + [label[i]]*n_samples_onesub[i]   
     return data, np.array(onesub_labels), n_samples_onesub, n_samples_sessions
 
-def load_processed_SEED_NEW_data(dir, fs, n_chans, timeLen, timeStep, n_session=3, 
-                                  n_subs=15, n_vids = 15, n_class=3):
-    # input data shape(onesub_onesession):(channels,tot_time) tot_time = sum(eachvids_n_points) 
-    # *input data shape（onesub_3session):(channels,tot_time)
-    # output : (subs*sum(n_samples_onesub))*channals*time
-    #           (16*(sum(n_samples_onesub)))*62*point_len(1250)
-    
+def load_processed_SEED_NEW_data(dir, fs, n_chans, timeLen, timeStep, n_session=3,
+                                 n_subs=15, n_vids=15, n_class=3):
+    """
+    带缓存机制的 SEED 数据加载函数。
+    如果检测到已处理好的标记文件，直接一把加载打包好的大文件；否则重新处理。
+    """
+    # ================= 1. 定义缓存文件路径 =================
+    target_folder_name = f"sliced_len{timeLen}_step{timeStep}_SEED"
+    slice_dir = os.path.join(dir, target_folder_name)
 
-    list_files = os.listdir(dir)
-    list_files = sorted(list_files, key=lambda x: int(re.search(r'\d+', x).group()))
-    assert len(list_files) == n_subs
-    points_len = int(timeLen*fs)
-    points_step = int(timeStep*fs)
-    
-    # 3 session in all change delete the loop
-    file_path = os.path.join(dir,list_files[0])
-    onesub_data = sio.loadmat(file_path)  
-    n_time = np.squeeze(onesub_data['merged_n_samples_one']).astype(int)
-    n_points = np.array(n_time) * fs
-    n_samples_onesub = ((n_points-points_len)//points_step+1).astype(int)
-    n_samples_sum_onesub = np.sum(n_samples_onesub)
-    
-    data = np.empty((n_subs*n_samples_sum_onesub,n_chans,points_len),float)
+    # 你的标记文件路径
+    marker_file = os.path.join(slice_dir, 'saved.npy')
 
-    cnt = 0
-    for idx,fn in enumerate(list_files):
-        file_path = os.path.join(dir,fn)
-        # print(fn)
-        onesub_data = sio.loadmat(file_path)     #keys: data,n_points
-        EEG_data = onesub_data['merged_data_all_cleaned']   #(channels,tot_n_points_3session)  (60,tot_n_points_3session)
-        thr = 30 * np.median(np.abs(EEG_data))
-        EEG_data = (EEG_data - np.mean(EEG_data[np.abs(EEG_data)<thr])) / np.std(EEG_data[np.abs(EEG_data)<thr])
-        n_points_cum = np.concatenate((np.array([0]),np.cumsum(n_points)))
+    # ================= 2. 检查缓存是否存在且格式兼容 =================
+    data_all_path = os.path.join(slice_dir, 'data_all.npy')
+    if os.path.exists(marker_file) and os.path.exists(data_all_path):
+        print(f" [Fast Load] Found marker file: {marker_file}")
+        print(f" Reading slices from: {slice_dir}")
 
-        
-        n_vids_all = n_vids*n_session
-        for vid in range(n_vids_all):
-            # print('vid:',vid)
-            for i in range(n_samples_onesub[vid]):
-                # print('sample:',i)
-                data[cnt] = EEG_data[:,n_points_cum[vid]+i*points_step:n_points_cum[vid]+i*points_step+points_len]
-                cnt+=1
-    
-    n_samples_onesub = np.array(n_samples_onesub)
-    n_samples_sessions = n_samples_onesub.reshape(n_session,-1)
-    label =  list(np.array([1, 0, -1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 0, 1, -1])+1) * 3
-    onesub_labels = []
-    for i in range(len(label)):
-        onesub_labels = onesub_labels + [label[i]]*n_samples_onesub[i]   
-    return data, np.array(onesub_labels), n_samples_onesub, n_samples_sessions
+        try:
+            onesub_labels = np.load(os.path.join(slice_dir, 'onesub_labels.npy'))
+            n_samples_onesub = np.load(os.path.join(slice_dir, 'n_samples_onesub.npy'))
+            n_samples_sessions = np.load(os.path.join(slice_dir, 'n_samples_sessions.npy'))
+
+            print(f" Loading data_all.npy (this might take a few seconds due to its large size)...")
+            data_all = np.load(os.path.join(slice_dir, 'data_all.npy'))
+
+            if data_all.ndim == 4 and data_all.shape[1] == 1:
+                data_all = data_all.squeeze(1)
+
+            print(f" Loaded successfully! Data shape: {data_all.shape}")
+            return data_all, onesub_labels, n_samples_onesub, n_samples_sessions
+
+        except Exception as e:
+            print(f" Error during loading: {e}")
+            raise e
+
+    # ================= 3. 如果缓存不存在，执行原本的处理逻辑 =================
+    print(f" Cache not found. Starting processing from scratch...")
+    print(f" [SEED Load] Scanning folders 1, 2, 3 in: {dir}")
+    print(f" Resampling: Raw(200Hz) -> {fs} Hz | Window: {timeLen}s | Step: {timeStep}s")
+
+    import scipy.signal
+    import scipy.io as sio
+
+    # SEED 原始采样率
+    ORIG_FS = 200
+    points_len = int(timeLen * fs)
+    points_step = int(timeStep * fs)
+
+    # 标签映射: 1(Pos)->2, 0(Neu)->1, -1(Neg)->0
+    # 实验顺序: 15 个视频的原始标签
+    raw_labels = [1, 0, -1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 0, 1, -1]
+    label_map = {1: 2, 0: 1, -1: 0}
+    target_labels = [label_map[l] for l in raw_labels]
+
+    # 初始化容器
+    all_slices = []  # 存放所有切片数据 (N, 62, Time)
+    all_labels = []  # 存放每个切片的标签
+    n_samples_per_vid_list = []  # 记录每个视频切了多少片 (用于 Dataset 索引)
+
+    # 遍历 15 个受试者 (从文件名排序获取)
+    session_files = {}
+    import re
+    for sess in range(1, n_session + 1):
+        sess_path = os.path.join(dir, str(sess))
+        if not os.path.exists(sess_path):
+            raise FileNotFoundError(f"Session folder not found: {sess_path}")
+
+        files = [f for f in os.listdir(sess_path) if f.endswith('.mat')]
+        files = sorted(files, key=lambda x: int(re.search(r'^(\d+)_', x).group(1)))
+
+        if len(files) != n_subs:
+            raise ValueError(f"Session {sess} has {len(files)} files, expected {n_subs}!")
+        session_files[sess] = files
+
+    # --- 双重循环：受试者 -> Session ---
+    for sub_idx in range(n_subs):
+        print(f"Processing Subject {sub_idx + 1}/{n_subs}...", end='\r')
+
+        for sess in range(1, n_session + 1):
+            fn = session_files[sess][sub_idx]
+            file_path = os.path.join(dir, str(sess), fn)
+
+            try:
+                mat_content = sio.loadmat(file_path)
+            except Exception as e:
+                print(f"\n Error loading {file_path}: {e}")
+                continue
+
+            eeg_keys = [k for k in mat_content.keys() if 'eeg' in k and not 'rf' in k]
+            eeg_keys = sorted(eeg_keys, key=lambda x: int(re.search(r'eeg(\d+)', x).group(1)))
+
+            if len(eeg_keys) != n_vids:
+                print(f"\n Warning: {fn} has {len(eeg_keys)} keys, expected {n_vids}")
+                continue
+
+            for vid_idx, key in enumerate(eeg_keys):
+                raw_data = mat_content[key]
+
+                # 1. 降采样
+                if fs != ORIG_FS:
+                    target_points = int(raw_data.shape[1] * (fs / ORIG_FS))
+                    data_resampled = scipy.signal.resample(raw_data, target_points, axis=1)
+                else:
+                    data_resampled = raw_data
+
+                # 2. Z-score 归一化 (Per Trial)
+                mean_v = np.mean(data_resampled, axis=1, keepdims=True)
+                std_v = np.std(data_resampled, axis=1, keepdims=True)
+                data_norm = (data_resampled - mean_v) / (std_v + 1e-8)
+
+                # 3. 切片
+                n_cols = data_norm.shape[1]
+                if n_cols < points_len:
+                    n_samples_per_vid_list.append(0)
+                    continue
+
+                n_wins = (n_cols - points_len) // points_step + 1
+                n_samples_per_vid_list.append(n_wins)
+
+                for i in range(n_wins):
+                    start = i * points_step
+                    end = start + points_len
+                    win_data = data_norm[:, start:end]
+                    all_slices.append(win_data)
+                    all_labels.append(target_labels[vid_idx])
+
+    print(f"\n Data processing finished.")
+
+    # 1. 还原统计数据
+    counts_arr = np.array(n_samples_per_vid_list).reshape(n_subs, n_session, n_vids)
+
+    # 2. 每个 session/视频分别取跨受试者的最小窗口数；视频之间仍保留不同长度。
+    min_counts = np.min(counts_arr, axis=0)  # Shape: (3, 15)
+    print(" [Alignment] Truncating data to match minimum samples across subjects...")
+
+    # 3. 根据最小值过滤数据 (Rebuild the list)
+    new_slices = []
+    new_labels = []
+    current_idx = 0
+
+    for sub in range(n_subs):
+        for sess in range(n_session):
+            for vid in range(n_vids):
+                actual_count = counts_arr[sub, sess, vid]
+                keep_count = min_counts[sess, vid]
+
+                segment = all_slices[current_idx: current_idx + keep_count]
+                new_slices.extend(segment)
+
+                segment_labels = all_labels[current_idx: current_idx + keep_count]
+                new_labels.extend(segment_labels)
+
+                current_idx += actual_count
+
+    # 4. 生成最终数据
+    data = np.stack(new_slices, axis=0)
+    onesub_labels = np.array(new_labels)
+    n_samples_sessions = min_counts
+    n_samples_onesub = np.tile(n_samples_sessions.flatten(), n_subs)
+
+    print(f" Final Data Shape: {data.shape}")
+    print(f" Metadata Shape Check: n_samples_sessions {n_samples_sessions.shape}")
+    print(f" Total Slices: {len(onesub_labels)}")
+
+    # 保存缓存，下次直接读取，避免重复切片
+    os.makedirs(slice_dir, exist_ok=True)
+    np.save(os.path.join(slice_dir, 'onesub_labels.npy'), onesub_labels)
+    np.save(os.path.join(slice_dir, 'n_samples_onesub.npy'), n_samples_onesub)
+    np.save(os.path.join(slice_dir, 'n_samples_sessions.npy'), n_samples_sessions)
+    np.save(os.path.join(slice_dir, 'data_all.npy'), data)
+    np.save(marker_file, [True])
+    print(f' Sliced data cached to: {slice_dir}')
+
+    return data, onesub_labels, n_samples_onesub, n_samples_sessions
 
 
 

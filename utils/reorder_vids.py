@@ -1,6 +1,5 @@
 import scipy.io as sio
 from glob import glob
-import hdf5storage
 import numpy as np
 import os
 import copy
@@ -16,7 +15,9 @@ def video_order_load(n_vids=28):
         # Here don't forget to arange the subjects arrangement
         # print(file)
         remark_file = os.path.join(datapath,file,'After_remarks.mat')
-        subject_remark = hdf5storage.loadmat(remark_file)['After_remark']
+        # Released remark files use MATLAB 5 format. SciPy also avoids the
+        # removed NumPy aliases referenced by hdf5storage 0.1.19.
+        subject_remark = sio.loadmat(remark_file)['After_remark']
         vid_orders[idx, :] = [np.squeeze(subject_remark[vid][0][2]) for vid in range(0,n_vids)]
     # print('vid_order shape: ', vid_orders.shape)
     return vid_orders

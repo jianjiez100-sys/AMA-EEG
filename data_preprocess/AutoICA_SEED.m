@@ -1,6 +1,11 @@
 function AutoICA_SEED(data_dir, channel_file, chanlocs_file, coords_matrix_file, output_root)
 %AUTOICA_SEED Preprocess the SEED EEG dataset with explicit input paths.
 %
+% Reference utility carried over from external preprocessing code.
+% Not called by the current FACED or SEED Python pretraining pipeline.
+% Its interpolation helper and channel auxiliary files are needed only when
+% running this standalone MATLAB function.
+%
 % Example:
 %   AutoICA_SEED('/data/SEED/Preprocessed_EEG', ...
 %       '/data/SEED/chn_names.mat', ...
@@ -9,9 +14,9 @@ function AutoICA_SEED(data_dir, channel_file, chanlocs_file, coords_matrix_file,
 %       '/data/SEED/processed');
 %
 % Requirements: FieldTrip, EEGLAB with ICLabel, NoiseTools, and the custom
-% nt_interpolate_bad_channels_custom function used by the original pipeline.
+% nt_interpolate_bad_channels_custom function called by this utility.
 %
-% This is the pipeline for SEED EEG dataset preprocessing, including:
+% This standalone utility performs the following SEED preprocessing steps:
 % (1) Downsample
 % (2) Band pass Filter
 % (3) Divide into trials, specifically, data matrix for 1 subject 1 vedio
